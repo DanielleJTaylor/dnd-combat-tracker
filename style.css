@@ -375,7 +375,21 @@ body.dark #hpPopup input {
     border-color: #444;
 }
 
+
+/* Style for the new HP Popup layout */
+.hp-popup-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.hp-popup-field label {
+  margin-right: 10px;
+}
+
 #hpPopup button {
   background-color: var(--accent); /* Consistent accent color */
   color: black; /* Text on accent should be black for readability */
+  margin-top: 10px;
+  width: 100%;
 }

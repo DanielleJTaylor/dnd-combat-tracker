@@ -85,14 +85,23 @@
   </section>
 
 
-  <!-- HP Popup Panel -->
-  <div id="hpPopup" class="modal hidden">
-    <h3>Edit HP</h3>
-    <label>Heal: <input type="number" id="healInput" /></label><br />
-    <label>Damage: <input type="number" id="damageInput" /></label><br />
-    <button onclick="applyHpChange()">Apply</button>
+<!-- HP Popup Panel -->
+<div id="hpPopup" class="modal hidden">
+  <h3>Adjust HP</h3>
+  <div class="hp-popup-field">
+    <label for="healingInput">Healing:</label>
+    <input type="number" id="healingInput" min="0" placeholder="e.g., 10" />
   </div>
-
+  <div class="hp-popup-field">
+    <label for="damageInput">Damage:</label>
+    <input type="number" id="damageInput" min="0" placeholder="e.g., 15" />
+  </div>
+  <div class="hp-popup-field">
+    <label for="addTempHpInput">Add Temp HP:</label>
+    <input type="number" id="addTempHpInput" min="0" placeholder="e.g., 5" />
+  </div>
+  <button onclick="applyHpChange()">Apply</button>
+</div>
 
   <script src="script.js"></script>
 </body>

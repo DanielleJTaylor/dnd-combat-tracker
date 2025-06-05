@@ -10,9 +10,9 @@ let currentCombatantIdForHp = null;
 let currentHpFieldToEdit = null; // 'hp' or 'tempHp'
 
 const hpPopup = document.getElementById('hpPopup');
-const healInput = document.getElementById('healInput');
+const healingInput = document.getElementById('healingInput');
 const damageInput = document.getElementById('damageInput');
-
+const addTempHpInput = document.getElementById('addTempHpInput');
 
 const statusOptions = [
     'Charmed', 'Frightened', 'Prone', 'Poisoned',
@@ -314,6 +314,8 @@ function renderCombatants() {
 
 
 
+// ========== PASTE THE FULL REPLACEMENT FUNCTION HERE ==========
+
 function createGroupRow(group) {
   const row = document.createElement('div');
   row.className = 'group-header creature-row';
@@ -331,7 +333,6 @@ function createGroupRow(group) {
     document.body.classList.remove('dragging');
   };
 
-  // Consistent column count with grid layout
   row.innerHTML = `
     <div class="cell image-cell">📁</div>
     <div class="cell init-cell" contenteditable="true" data-field="init">${group.init}</div>
@@ -348,75 +349,38 @@ function createGroupRow(group) {
     </div>
   `;
 
-  // Editable logic
+  // --- CORRECTED EDITABLE LOGIC ---
   row.querySelectorAll('[contenteditable="true"]').forEach(cell => {
     cell.addEventListener('blur', (e) => {
         const field = cell.dataset.field;
-        const oldValue = c[field];
+        const oldValue = group[field]; // FIXED: Use 'group' instead of 'c'
         const newValueRaw = cell.textContent.trim();
+        let newValue;
 
-        let newValue = (field === 'name' || field === 'role')
-            ? newValueRaw
-            : parseInt(newValueRaw, 10);
-
-        if (
-            ['init', 'ac', 'hp', 'tempHp', 'maxHp'].includes(field) &&
-            isNaN(newValue)
-        ) {
-            alert(`Invalid input for ${field}. Please enter a number.`);
-            cell.textContent = oldValue;
-            return;
+        if (field === 'init') {
+            newValue = parseInt(newValueRaw, 10);
+            if (isNaN(newValue)) {
+                alert('Invalid input for initiative. Please enter a number.');
+                cell.textContent = oldValue; // Revert display
+                return;
+            }
+        } else { // For 'name' field
+            newValue = newValueRaw;
         }
 
-        let changed = false;
-
-        if (field === 'hp') {
-            newValue = Math.max(0, Math.min(newValue, c.maxHp));
-            if (newValue !== oldValue) {
-                logChange(`${c.name} HP changed: ${oldValue}/${c.maxHp} → ${newValue}/${c.maxHp}`);
-                c.hp = newValue;
-                changed = true;
-            }
-        } else if (field === 'tempHp') {
-            newValue = Math.max(0, newValue);
-            if (newValue !== oldValue) {
-                logChange(`${c.name} Temp HP changed: ${oldValue} → ${newValue}`);
-                c.tempHp = newValue;
-                changed = true;
-            }
-        } else if (field === 'maxHp') {
-            newValue = Math.max(0, newValue);
-            if (newValue !== oldValue) {
-                logChange(`${c.name} Max HP changed: ${oldValue} → ${newValue}`);
-                c.maxHp = newValue;
-                changed = true;
-                if (c.hp > c.maxHp) {
-                    c.hp = c.maxHp;
-                    logChange(`${c.name} current HP clamped to new Max HP: ${c.hp}`);
-                }
-            }
-        } else if (field === 'init' || field === 'ac') {
-            if (newValue !== oldValue) {
-                logChange(`${c.name}'s ${field} changed to ${newValue}`);
-                c[field] = newValue;
-                changed = true;
-            }
-        } else if (field === 'name' || field === 'role') {
-            if (newValue !== oldValue) {
-                logChange(`${c.name}'s ${field} changed to ${newValue}`);
-                c[field] = newValue;
-                changed = true;
-            }
-        }
-
-
+        // Only update if the value actually changed
         if (newValue !== oldValue) {
+            logChange(`Group ${group.name}'s ${field} changed from ${oldValue} to ${newValue}`);
+            group[field] = newValue;
+
+            // If the name was changed, we don't need to re-log. The value is just updated.
+            if (field === 'name') {
+              group.name = newValue;
+            }
+
             saveCombatants();
-            setTimeout(renderCombatants, 0); // Delay re-render until after DOM updates
+            renderCombatants(); // Re-render to reflect the change (especially sorting for init)
         }
-
-    
-
     });
 
     cell.addEventListener('keydown', (e) => {
@@ -426,9 +390,12 @@ function createGroupRow(group) {
       }
     });
   });
+  // --- END OF CORRECTION ---
 
   return row;
 }
+
+// ========== END OF REPLACEMENT FUNCTION ==========
 
 
 function createDropZone(targetItem, targetGroup, targetIndex, type) {
@@ -762,35 +729,33 @@ function attachImageEditEvent(row, c) {
 // ... (rest of your existing code, no changes needed below this) ...
 
 
-function showHpPopup(combatantId, event, fieldType) { // Added fieldType parameter
+function showHpPopup(combatantId, event, fieldType) {
     currentCombatantIdForHp = combatantId;
-    currentHpFieldToEdit = fieldType; // Store whether it's HP or Temp HP
+    currentHpFieldToEdit = fieldType; // Keep this to know what was clicked
     const combatant = findCombatantById(combatantId);
 
-    if (!combatant) {
-        console.error("Combatant not found for HP popup:", combatantId);
-        return;
-    }
+    if (!combatant) return;
 
-    // Get the bounding rectangle of the cell that was right-clicked
     const cellRect = event.target.getBoundingClientRect();
-
-    // Position the popup
     hpPopup.style.left = `${cellRect.left + window.scrollX}px`;
-    hpPopup.style.top = `${cellRect.bottom + window.scrollY + 8}px`; // 8px spacing below the cell
-    hpPopup.classList.remove('hidden'); // Show the popup
+    hpPopup.style.top = `${cellRect.bottom + window.scrollY + 8}px`;
+    hpPopup.classList.remove('hidden');
 
-    // Clear inputs and focus based on the field type
-    healInput.value = '';
+    // Clear all inputs
+    healingInput.value = '';
     damageInput.value = '';
+    addTempHpInput.value = '';
+
+    // Focus on the most relevant input based on the click context
     if (fieldType === 'hp') {
-        healInput.focus();
+        healingInput.focus(); // Default to healing when clicking main HP
     } else if (fieldType === 'tempHp') {
-        // Maybe default to damage input for temp HP or keep heal focus
-        damageInput.focus(); // Focusing damage for temp HP makes sense
+        addTempHpInput.focus(); // Default to adding Temp HP when clicking Temp HP
     }
-    console.log('Popup shown for:', combatantId, 'at', hpPopup.style.left, hpPopup.style.top);
 }
+
+
+// ========== PASTE THE FULL REPLACEMENT FUNCTION HERE ==========
 
 function applyHpChange() {
     if (!currentCombatantIdForHp) return;
@@ -798,54 +763,72 @@ function applyHpChange() {
     const combatant = findCombatantById(currentCombatantIdForHp);
     if (!combatant) return;
 
-    const healAmount = parseInt(healInput.value, 10) || 0;
+    // Get values from all three input fields, defaulting to 0 if empty
+    const healingAmount = parseInt(healingInput.value, 10) || 0;
     const damageAmount = parseInt(damageInput.value, 10) || 0;
+    const tempHpGain = parseInt(addTempHpInput.value, 10) || 0;
 
-    // Log old values before modification for accurate history
+    // Store old values for accurate logging
     const oldHp = combatant.hp;
-    const oldTempHp = combatant.tempHp;
+    const oldTempHp = combatant.tempHp || 0;
 
-    if (currentHpFieldToEdit === 'hp') {
-        // Applying changes to main HP
-        if (healAmount > 0) {
-            combatant.hp = Math.min(combatant.maxHp, combatant.hp + healAmount);
-            logChange(`${combatant.name} healed: ${oldHp}/${combatant.maxHp} → ${combatant.hp}/${combatant.maxHp}`);
+    // --- Process changes in a logical, unified order ---
+
+    // 1. Add new temporary HP first.
+    if (tempHpGain > 0) {
+        combatant.tempHp = oldTempHp + tempHpGain;
+        logChange(`${combatant.name} gains ${tempHpGain} temporary HP. Total: ${combatant.tempHp}`);
+    }
+
+    // 2. Apply healing to the main HP pool (cannot exceed max HP).
+    if (healingAmount > 0) {
+        const newHp = Math.min(combatant.maxHp, combatant.hp + healingAmount);
+        if (newHp > oldHp) {
+            const healedFor = newHp - oldHp;
+            combatant.hp = newHp;
+            logChange(`${combatant.name} is healed for ${healedFor}. HP: ${combatant.hp}/${combatant.maxHp}`);
         }
-        if (damageAmount > 0) {
-            let remainingDamage = damageAmount;
-            // Apply damage to temporary HP first
-            if (combatant.tempHp > 0) {
-                const damageToTempHp = Math.min(combatant.tempHp, remainingDamage);
-                combatant.tempHp -= damageToTempHp;
-                remainingDamage -= damageToTempHp;
-                if (combatant.tempHp < oldTempHp) {
-                    logChange(`${combatant.name} temp HP changed: ${oldTempHp} → ${combatant.tempHp}`);
-                }
+    }
+
+    // 3. Apply damage last. This logic is now ALWAYS used for damage.
+    if (damageAmount > 0) {
+        let remainingDamage = damageAmount;
+        let currentTempHp = combatant.tempHp || 0;
+        
+        logChange(`${combatant.name} takes ${damageAmount} damage.`);
+
+        // Damage hits temporary HP first.
+        if (currentTempHp > 0) {
+            const damageToTemp = Math.min(currentTempHp, remainingDamage);
+            combatant.tempHp -= damageToTemp;
+            remainingDamage -= damageToTemp;
+            if (damageToTemp > 0) {
+                 logChange(`  -${damageToTemp} absorbed by Temp HP (New Temp HP: ${combatant.tempHp})`);
             }
-            // Apply remaining damage to regular HP
-            if (remainingDamage > 0) {
-                combatant.hp = Math.max(0, combatant.hp - remainingDamage);
-                logChange(`${combatant.name} HP changed: ${oldHp}/${combatant.maxHp} → ${combatant.hp}/${combatant.maxHp}`);
+        }
+
+        // Any remaining damage hits the main HP pool.
+        if (remainingDamage > 0) {
+            const damageToHp = Math.min(combatant.hp, remainingDamage);
+            if (damageToHp > 0) {
+                combatant.hp -= damageToHp;
+                logChange(`  -${damageToHp} dealt to main HP (New HP: ${combatant.hp}/${combatant.maxHp})`);
             }
-        }
-    } else if (currentHpFieldToEdit === 'tempHp') {
-        // Applying changes specifically to temporary HP
-        if (healAmount > 0) {
-            combatant.tempHp = combatant.tempHp + healAmount; // Temp HP can exceed max HP
-            logChange(`${combatant.name} temp HP gained: ${oldTempHp} → ${combatant.tempHp}`);
-        }
-        if (damageAmount > 0) {
-            combatant.tempHp = Math.max(0, combatant.tempHp - damageAmount);
-            logChange(`${combatant.name} temp HP lost: ${oldTempHp} → ${combatant.tempHp}`);
         }
     }
 
     saveCombatants();
     renderCombatants();
-    hpPopup.classList.add('hidden'); // Hide popup after applying changes
+    
+    // Hide and reset the popup
+    hpPopup.classList.add('hidden');
     currentCombatantIdForHp = null;
     currentHpFieldToEdit = null;
 }
+
+// ========== END OF REPLACEMENT FUNCTION ==========
+
+
 
 // Close HP popup if clicking outside
 window.addEventListener('click', (e) => {
