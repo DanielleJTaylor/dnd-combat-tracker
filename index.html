@@ -8,9 +8,19 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 </head>
 
+<div id="hpPopup" class="hp-popup">
+  <div>
+    <label>Heal:</label>
+    <input type="number" id="healInput" />
+  </div>
+  <div>
+    <label>Damage:</label>
+    <input type="number" id="damageInput" />
+  </div>
+  <button onclick="applyHpChange()">Apply</button>
+</div>
+
 <body class="light">
-
-
   <header>
     <h1>🧝‍♂️ D&D Combat Tracker</h1>
     <div class="theme-container">
@@ -42,16 +52,16 @@
 
     <div id="combatTable" class="tracker-table">
       <div class="tracker-table-header">
-        <div class="cell">🖼</div>
-        <div class="cell">INIT</div>
-        <div class="cell">NAME</div>
-        <div class="cell">AC</div>
-        <div class="cell">HP</div>
-        <div class="cell">Temp</div>   <!-- ✅ NEW COLUMN -->
-        <div class="cell">Max</div>    <!-- ✅ NEW COLUMN -->
-        <div class="cell">STATUS</div>
-        <div class="cell">ROLE</div>
-        <div class="cell">ACTIONS</div>
+        <div class="cell image-cell">[img]</div>         <!-- 1: Image -->
+        <div class="cell">[init]</div>                  <!-- 2: Init -->
+        <div class="cell" contenteditable>[name]</div>  <!-- 3: Name -->
+        <div class="cell" contenteditable>[ac]</div>    <!-- 4: AC -->
+        <div class="cell" contenteditable>[hp]</div>    <!-- 5: HP -->
+        <div class="cell" contenteditable>[tempHp]</div><!-- 6: Temp -->
+        <div class="cell" contenteditable>[maxHp]</div> <!-- 7: Max -->
+        <div class="cell">[status tags]</div>           <!-- 8: Status -->
+        <div class="cell">[role]</div>                  <!-- 9: Role -->
+        <div class="cell">[buttons/actions]</div>       <!-- 10: Actions -->
       </div>
       <div id="combatantList"></div>
     </div>
@@ -84,6 +94,17 @@
   <section id="trackerContainer" class="tracker-log-panel">
     <div id="historyLogContent" class="log-content"></div>
   </section>
+
+
+  <!-- HP Popup Panel -->
+  <div id="hpPopup" class="modal hidden" style="position: absolute; z-index: 9999; background: #fff; border: 1px solid #ccc; padding: 1em; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.3);">
+    <h3>Edit HP</h3>
+    <label>Heal: <input type="number" id="healInput" /></label><br />
+    <label>Damage: <input type="number" id="damageInput" /></label><br />
+    <button onclick="applyHpChange()">Apply</button>
+  </div>
+
+
 
   <script src="script.js"></script>
 </body>

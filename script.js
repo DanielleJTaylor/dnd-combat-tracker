@@ -295,66 +295,80 @@ function renderCombatants() {
     saveCombatants(); // Ensure state is saved after rendering
 }
 
+
+
 function createGroupRow(group) {
-    const row = document.createElement('div');
-    row.className = 'group-header tracker-table-header creature-row'; // Use creature-row for grid display
-    row.setAttribute("draggable", "true"); // Groups are also draggable
+  const row = document.createElement('div');
+  row.className = 'group-header creature-row';
+  row.setAttribute("draggable", "true");
+  row.dataset.combatantId = group.id;
 
-    row.ondragstart = (e) => {
-        draggedCombatantId = group.id;
-        e.dataTransfer.setData("text/plain", group.id);
-        e.dataTransfer.effectAllowed = "move";
-    };
+  row.ondragstart = (e) => {
+    draggedCombatantId = group.id;
+    e.dataTransfer.setData("text/plain", group.id);
+    e.dataTransfer.effectAllowed = "move";
+    document.body.classList.add('dragging');
+  };
 
+  row.ondragend = () => {
+    document.body.classList.remove('dragging');
+  };
 
-    row.innerHTML = `
-        ${imageCell}
-        <div class="cell init-cell" ${isGrouped ? '' : 'contenteditable="true"'} data-field="init">
-            ${isGrouped ? '' : c.init}
-        </div>
-        <div class="cell cell-name" contenteditable="true" data-field="name">${c.name}</div>
-        <div class="cell cell-ac" contenteditable="true" data-field="ac">${c.ac}</div>
-        <div class="cell cell-hp" contenteditable="true" data-field="hp">${c.hp}/${c.maxHp}</div>
-        <div class="cell" contenteditable="true" data-field="tempHp">${c.tempHp || 0}</div>
-        <div class="cell" contenteditable="true" data-field="maxHp">${c.maxHp || 0}</div>
-        <div class="cell status-cell">${statusTags} ${statusDropdown}</div>
-        <div class="cell role-cell" contenteditable="true" data-field="role">${c.role || 'player'}</div>
-        <div class="cell action-cell">
-            <button onclick="duplicateCombatant('${c.id}')" title="Duplicate Combatant">+</button>
-            ${groupRef ? `<button onclick="removeFromGroup('${c.id}', '${groupRef.id}')" title="Remove from Group">⬅</button>` : ''}
-            <button onclick="deleteCombatant('${c.id}')" title="Delete Combatant">🗑</button>
-        </div>
-    `;
+  // Consistent column count with grid layout
+  row.innerHTML = `
+    <div class="cell image-cell">📁</div>
+    <div class="cell init-cell" contenteditable="true" data-field="init">${group.init}</div>
+    <div class="cell cell-name" contenteditable="true" data-field="name">${group.name}</div>
+    <div class="cell cell-ac"></div>
+    <div class="cell cell-hp"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell status-cell"></div>
+    <div class="cell role-cell">DM Group</div>
+    <div class="cell action-cell">
+      <button onclick="duplicateCombatant('${group.id}')" title="Duplicate Group">+</button>
+      <button onclick="deleteCombatant('${group.id}')" title="Delete Group">🗑</button>
+    </div>
+  `;
 
+  // Editable logic
+  row.querySelectorAll('[contenteditable="true"]').forEach(cell => {
+    cell.addEventListener('blur', () => {
+      const field = cell.dataset.field;
+      const oldValue = group[field];
+      let newValue = cell.textContent.trim();
 
-    // Attach editable events for group name/init/ac/hp
-    row.querySelectorAll('[contenteditable="true"]').forEach(cell => {
-        attachEditableEvents(row, group);
+      if (field === 'name') {
+        if (newValue !== oldValue) {
+          logChange(`${oldValue} (Group) renamed to ${newValue}`);
+          group.name = newValue;
+        }
+      } else if (field === 'init') {
+        newValue = parseInt(newValue);
+        if (!isNaN(newValue) && newValue !== oldValue) {
+          logChange(`${group.name}'s Initiative changed to ${newValue}`);
+          group.init = newValue;
+        } else if (isNaN(newValue)) {
+          cell.textContent = oldValue;
+          alert(`Invalid input for initiative. Please enter a number.`);
+        }
+      }
 
-        cell.addEventListener('blur', () => {
-            const newName = row.querySelector('.cell-name').textContent.trim();
-            const newInit = parseInt(row.querySelector('.cell:nth-child(2)').textContent.trim());
-            const newAC = parseInt(row.querySelector('.cell-ac').textContent.trim());
-
-            if (newName !== group.name) {
-                logChange(`${group.name} (Group) renamed to ${newName}`);
-                group.name = newName;
-            }
-            if (!isNaN(newInit) && newInit !== group.init) {
-                logChange(`${group.name}'s Initiative changed to ${newInit}`);
-                group.init = newInit;
-            }
-            if (!isNaN(newAC) && newAC !== group.ac) {
-                logChange(`${group.name}'s AC changed to ${newAC}`);
-                group.ac = newAC;
-            }
-            saveCombatants();
-            renderCombatants(); // Re-render to re-sort if initiative changed
-        });
+      saveCombatants();
+      renderCombatants();
     });
 
-    return row;
+    cell.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.target.blur();
+      }
+    });
+  });
+
+  return row;
 }
+
 
 function createDropZone(targetItem, targetGroup, targetIndex, type) {
     const drop = document.createElement('div');
@@ -533,6 +547,16 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
 
     attachEditableEvents(row, c);
     attachImageEditEvent(row, c);
+
+
+    const hpCell = row.querySelector('.cell-hp');
+    if (hpCell) {
+        hpCell.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            showHpPopup(c.id, e);
+        });
+    }
+
     return row;
 }
 
@@ -890,6 +914,7 @@ function triggerImport() {
     document.getElementById('importInput').click();
 }
 
+
 document.getElementById('importInput').addEventListener('change', function (e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -897,12 +922,15 @@ document.getElementById('importInput').addEventListener('change', function (e) {
     const reader = new FileReader();
     reader.onload = function (event) {
         try {
+            // FIX: Parse the JSON string from the file content
+            const state = JSON.parse(event.target.result);
+
             combatants = state.combatants || [];
             round = state.round || 1;
             currentTurnIndex = state.currentTurnIndex || 0;
             historyLog = state.historyLog || [];
 
-            // ✅ Ensure tempHp and maxHp exist on all combatants
+            // ✅ Ensure tempHp and maxHp exist on all combatants (this block is good for migration)
             function ensureHpFieldsExist(combatant) {
                 if (combatant.isGroup && combatant.members) {
                     combatant.members.forEach(member => {
@@ -924,12 +952,16 @@ document.getElementById('importInput').addEventListener('change', function (e) {
                 document.getElementById('themeToggle').checked = true;
             } else {
                 document.body.classList.remove('dark');
+                document.body.classList.add('light');
                 document.getElementById('themeToggle').checked = false;
             }
 
-            logChange("📂 Encounter loaded from file.");
+            // Update UI based on loaded state
+            document.getElementById('roundCounter').textContent = `Round: ${round}`; // Added this line
             renderCombatants();
             updateTurnDisplay();
+            logChange("📂 Encounter loaded from file."); // This log will now correctly appear in the *newly loaded* historyLog
+
         } catch (err) {
             console.error('Error importing encounter:', err);
             alert('Failed to import encounter. The file might be corrupted or in an incorrect format.');
@@ -939,6 +971,8 @@ document.getElementById('importInput').addEventListener('change', function (e) {
     };
     reader.readAsText(file);
 });
+
+
 
 function exportToPDF() {
     alert('🖨 PDF export not implemented yet.\nUse browser Print (Ctrl+P) as a workaround.');
