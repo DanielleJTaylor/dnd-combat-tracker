@@ -5,6 +5,15 @@ let round = 1;
 let historyLog = [];
 let draggedCombatantId = null;
 
+// Global variables for HP popup state
+let currentCombatantIdForHp = null;
+let currentHpFieldToEdit = null; // 'hp' or 'tempHp'
+
+const hpPopup = document.getElementById('hpPopup');
+const healInput = document.getElementById('healInput');
+const damageInput = document.getElementById('damageInput');
+
+
 const statusOptions = [
     'Charmed', 'Frightened', 'Prone', 'Poisoned',
     'Stunned', 'Blinded', 'Invisible', 'Paralyzed', 'Restrained'
@@ -110,35 +119,41 @@ showMoreBtn.addEventListener('click', () => {
     extraFields.classList.toggle('hidden');
 });
 
+// ... (your existing code) ...
+
 modalForm.addEventListener('submit', (e) => {
     e.preventDefault();
 
     const name = document.getElementById('modalName').value.trim();
     const init = parseInt(document.getElementById('modalInit').value, 10);
-    const ac = parseInt(document.getElementById('modalAC').value || 0, 10);
-    const hp = parseInt(document.getElementById('modalHP').value || 0, 10);
-    const maxHp = parseInt(document.getElementById('modalMaxHP').value || hp, 10);
-    const role = document.getElementById('modalRole').value || 'player';
+    // Removed the old ac, hp, maxHp parsing here
 
     if (!name || isNaN(init)) {
         alert('Please enter a name and a valid initiative.');
         return;
     }
 
+    // --- PASTE THE NEW CODE HERE ---
+    const hp = parseInt(document.getElementById('modalHP').value, 10);
+    const maxHp = parseInt(document.getElementById('modalMaxHP').value, 10);
+
+    const initialHp = isNaN(hp) ? 10 : hp; // Default to 10 if no HP given
+    const initialMaxHp = isNaN(maxHp) ? initialHp : maxHp; // Default max to initial HP if no max given
+
     const newCombatant = {
         id: generateUniqueId(),
         name: getUniqueName(name),
         init,
-        ac,
-        hp,
-        tempHp: 0, // NEW
-        maxHp: maxHp || hp,
-        role,
+        ac: parseInt(document.getElementById('modalAC').value || 0, 10), // AC can default to 0
+        hp: initialHp,
+        tempHp: 0,
+        maxHp: initialMaxHp,
+        role: document.getElementById('modalRole').value || 'player', // Make sure role is correctly assigned
         statusEffects: [],
         isGroup: false,
         previousInit: init
     };
-
+    // --- END OF NEW CODE ---
 
     combatants.push(newCombatant);
     logChange(`➕ Added ${newCombatant.name} (Init: ${newCombatant.init})`);
@@ -148,6 +163,8 @@ modalForm.addEventListener('submit', (e) => {
     creatureModal.classList.add('hidden');
     // Form is reset on open, no need here.
 });
+
+// ... (rest of your existing code) ...
 
 window.addEventListener('click', (e) => {
     if (e.target === creatureModal) {
@@ -333,29 +350,73 @@ function createGroupRow(group) {
 
   // Editable logic
   row.querySelectorAll('[contenteditable="true"]').forEach(cell => {
-    cell.addEventListener('blur', () => {
-      const field = cell.dataset.field;
-      const oldValue = group[field];
-      let newValue = cell.textContent.trim();
+    cell.addEventListener('blur', (e) => {
+        const field = cell.dataset.field;
+        const oldValue = c[field];
+        const newValueRaw = cell.textContent.trim();
 
-      if (field === 'name') {
+        let newValue = (field === 'name' || field === 'role')
+            ? newValueRaw
+            : parseInt(newValueRaw, 10);
+
+        if (
+            ['init', 'ac', 'hp', 'tempHp', 'maxHp'].includes(field) &&
+            isNaN(newValue)
+        ) {
+            alert(`Invalid input for ${field}. Please enter a number.`);
+            cell.textContent = oldValue;
+            return;
+        }
+
+        let changed = false;
+
+        if (field === 'hp') {
+            newValue = Math.max(0, Math.min(newValue, c.maxHp));
+            if (newValue !== oldValue) {
+                logChange(`${c.name} HP changed: ${oldValue}/${c.maxHp} → ${newValue}/${c.maxHp}`);
+                c.hp = newValue;
+                changed = true;
+            }
+        } else if (field === 'tempHp') {
+            newValue = Math.max(0, newValue);
+            if (newValue !== oldValue) {
+                logChange(`${c.name} Temp HP changed: ${oldValue} → ${newValue}`);
+                c.tempHp = newValue;
+                changed = true;
+            }
+        } else if (field === 'maxHp') {
+            newValue = Math.max(0, newValue);
+            if (newValue !== oldValue) {
+                logChange(`${c.name} Max HP changed: ${oldValue} → ${newValue}`);
+                c.maxHp = newValue;
+                changed = true;
+                if (c.hp > c.maxHp) {
+                    c.hp = c.maxHp;
+                    logChange(`${c.name} current HP clamped to new Max HP: ${c.hp}`);
+                }
+            }
+        } else if (field === 'init' || field === 'ac') {
+            if (newValue !== oldValue) {
+                logChange(`${c.name}'s ${field} changed to ${newValue}`);
+                c[field] = newValue;
+                changed = true;
+            }
+        } else if (field === 'name' || field === 'role') {
+            if (newValue !== oldValue) {
+                logChange(`${c.name}'s ${field} changed to ${newValue}`);
+                c[field] = newValue;
+                changed = true;
+            }
+        }
+
+
         if (newValue !== oldValue) {
-          logChange(`${oldValue} (Group) renamed to ${newValue}`);
-          group.name = newValue;
+            saveCombatants();
+            setTimeout(renderCombatants, 0); // Delay re-render until after DOM updates
         }
-      } else if (field === 'init') {
-        newValue = parseInt(newValue);
-        if (!isNaN(newValue) && newValue !== oldValue) {
-          logChange(`${group.name}'s Initiative changed to ${newValue}`);
-          group.init = newValue;
-        } else if (isNaN(newValue)) {
-          cell.textContent = oldValue;
-          alert(`Invalid input for initiative. Please enter a number.`);
-        }
-      }
 
-      saveCombatants();
-      renderCombatants();
+    
+
     });
 
     cell.addEventListener('keydown', (e) => {
@@ -491,9 +552,8 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
     row.className = 'creature-row';
     if (isGrouped) row.classList.add('group-member');
     row.setAttribute("draggable", "true");
-    row.dataset.combatantId = c.id; // Store ID on the row for easier lookup
+    row.dataset.combatantId = c.id;
 
-    // Add role-based styling
     if (c.role === 'dm') {
         row.classList.add('dm-row');
     } else {
@@ -504,19 +564,17 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
         draggedCombatantId = c.id;
         e.dataTransfer.setData("text/plain", c.id);
         e.dataTransfer.effectAllowed = "move";
-        document.body.classList.add('dragging'); // Add dragging class to body
+        document.body.classList.add('dragging');
     };
 
     row.ondragend = () => {
-        document.body.classList.remove('dragging'); // Remove dragging class from body
+        document.body.classList.remove('dragging');
     };
 
-    // Status tags with duration
     const statusTags = (c.statusEffects || []).map(se => {
         return `<span class="status-tag">${se.name} (${se.rounds})</span>`;
     }).join(' ');
 
-    // Status dropdown
     const statusDropdown = `
         <select onchange="applyStatusEffect('${c.id}', this)">
             <option value="">＋ Add</option>
@@ -524,10 +582,10 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
         </select>
     `;
 
-    // Image cell placeholder (replace with actual image if c.imageUrl exists)
     const imageContent = c.imageUrl ? `<img src="${c.imageUrl}" alt="${c.name}" class="combatant-image">` : '🧍';
     const imageCell = `<div class="cell image-cell" data-field="imageUrl">${imageContent}</div>`;
 
+    // In script.js (inside createCombatantRow function)
     row.innerHTML = `
         ${imageCell}
         <div class="cell init-cell" ${isGrouped ? '' : 'contenteditable="true"'} data-field="init">
@@ -535,8 +593,10 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
         </div>
         <div class="cell cell-name" contenteditable="true" data-field="name">${c.name}</div>
         <div class="cell cell-ac" contenteditable="true" data-field="ac">${c.ac}</div>
-        <div class="cell cell-hp" contenteditable="true" data-field="hp">${c.hp}</div>
-        <div class="cell" contenteditable="true" data-field="tempHp">${c.tempHp || 0}</div>  <div class="cell" contenteditable="true" data-field="maxHp">${c.maxHp || 0}</div>    <div class="cell status-cell">${statusTags} ${statusDropdown}</div>
+        <div class="cell" contenteditable="true" data-field="hp">${c.hp}</div>
+        <div class="cell" contenteditable="true" data-field="tempHp">${c.tempHp || 0}</div>
+        <div class="cell" contenteditable="true" data-field="maxHp">${c.maxHp || 0}</div>
+        <div class="cell status-cell">${statusTags} ${statusDropdown}</div>
         <div class="cell role-cell" contenteditable="true" data-field="role">${c.role || 'player'}</div>
         <div class="cell action-cell">
             <button onclick="duplicateCombatant('${c.id}')" title="Duplicate Combatant">+</button>
@@ -549,13 +609,23 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
     attachImageEditEvent(row, c);
 
 
-    const hpCell = row.querySelector('.cell-hp');
+    // Context menu for HP and Temp HP cells
+    const hpCell = row.querySelector('[data-field="hp"]');  // FIXED
     if (hpCell) {
         hpCell.addEventListener('contextmenu', (e) => {
             e.preventDefault();
-            showHpPopup(c.id, e);
+            showHpPopup(c.id, e, 'hp');
         });
     }
+
+    const tempHpCell = row.querySelector('[data-field="tempHp"]');
+    if (tempHpCell) {
+        tempHpCell.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            showHpPopup(c.id, e, 'tempHp');
+        });
+    }
+
 
     return row;
 }
@@ -567,43 +637,101 @@ function attachEditableEvents(row, c) {
         cell.addEventListener('blur', (e) => {
             const field = cell.dataset.field;
             const oldValue = c[field];
-            let newValue;
+            let newValueRaw = cell.textContent.trim();
+            let newValue; // Declare newValue here, will be assigned correctly below
 
-            if (field === 'hp') {
-                const hpText = cell.textContent.trim();
-                const [currentHP, maxHP] = parseHP(hpText, c.hp, c.maxHp);
-                if (currentHP !== c.hp || maxHP !== c.maxHp) {
-                    logChange(`${c.name} HP changed: ${c.hp}/${c.maxHp} → ${currentHP}/${maxHP}`);
-                    c.hp = Math.max(0, Math.min(currentHP, maxHP)); // Clamp HP between 0 and maxHP
-                    c.maxHp = maxHP; // Update max HP if changed
-                }
-            } else if (field === 'init' || field === 'ac') {
-                newValue = parseInt(cell.textContent.trim());
+            // Determine if the field should be a number
+            const isNumericField = ['init', 'ac', 'hp', 'tempHp', 'maxHp'].includes(field);
+
+            if (isNumericField) {
+                newValue = parseInt(newValueRaw, 10);
                 if (isNaN(newValue)) {
                     alert(`Invalid input for ${field}. Please enter a number.`);
                     cell.textContent = oldValue; // Revert to old value
-                    return;
+                    return; // Stop execution
                 }
-                if (newValue !== oldValue) {
-                    logChange(`${c.name}'s ${field} changed to ${newValue}`);
-                    c[field] = newValue;
-                }
-            } else if (field === 'name' || field === 'role') {
-                newValue = cell.textContent.trim();
-                if (newValue !== oldValue) {
-                    logChange(`${c.name}'s ${field} changed to ${newValue}`);
-                    c[field] = newValue;
-                }
+            } else {
+                newValue = newValueRaw; // For 'name' or 'role', use the raw string
             }
+
+            // Perform the update only if the new value is different from the old value
+            // and apply specific logic for each field type
+            // ========== PASTE THE REPLACEMENT CODE HERE ==========
+
+            if (newValue !== oldValue) { // This comparison now correctly handles number vs number or string vs string
+                if (field === 'hp') {
+                    // NEW: Check if the entered value is higher than the maximum HP
+                    if (newValue > c.maxHp) {
+                        const confirmSetToMax = confirm(
+                            `Invalid Input: The entered HP (${newValue}) is higher than the maximum (${c.maxHp}).\n\n` +
+                            `Would you like to set the HP to the maximum value (${c.maxHp}) instead?`
+                        );
+
+                        if (confirmSetToMax) {
+                            // User agreed, so we'll use maxHp as the new value.
+                            newValue = c.maxHp;
+                        } else {
+                            // User cancelled, so revert the change and stop processing.
+                            cell.textContent = oldValue; // Revert the cell display
+                            return; // Exit the event listener
+                        }
+                    } else {
+                        // If the value is not over max, ensure it's not negative.
+                        newValue = Math.max(0, newValue);
+                    }
+
+                    // Proceed with the update using the (potentially corrected) newValue
+                    logChange(`${c.name} HP changed: ${oldValue}/${c.maxHp} → ${newValue}/${c.maxHp}`);
+                    c.hp = newValue;
+
+                } else if (field === 'tempHp') {
+                    // Temp HP cannot go below zero
+                    newValue = Math.max(0, newValue);
+                    logChange(`${c.name} Temp HP changed: ${oldValue} → ${newValue}`);
+                    c.tempHp = newValue;
+                } else if (field === 'maxHp') {
+                    // Max HP cannot go below zero
+                    newValue = Math.max(0, newValue);
+                    logChange(`${c.name} Max HP changed: ${oldValue} → ${newValue}`);
+                    c.maxHp = newValue;
+                    // If current HP is greater than new max HP, clamp it
+                    if (c.hp > c.maxHp) {
+                        c.hp = c.maxHp;
+                        logChange(`${c.name} current HP clamped to new Max HP: ${c.hp}`);
+                    }
+                } else if (field === 'init' || field === 'ac') {
+                    logChange(`${c.name}'s ${field} changed to ${newValue}`);
+                    c[field] = newValue;
+                } else if (field === 'name' || field === 'role') {
+                    // Special handling for 'name' due to getUniqueName
+                    if (field === 'name') {
+                        // If the name is changed, generate a unique one
+                        const newUniqueName = getUniqueName(newValue);
+                        logChange(`${oldValue}'s name changed to ${newUniqueName}`);
+                        newValue = newUniqueName; // Update newValue to the unique one
+                    } else {
+                        logChange(`${c.name}'s ${field} changed to ${newValue}`);
+                    }
+                    c[field] = newValue;
+                }
+                // Update the cell's content to reflect the potentially adjusted newValue
+                // This is now handled by renderCombatants(), but we leave it for the name change case
+                cell.textContent = newValue;
+            }
+            // ========== END OF REPLACEMENT CODE ==========
+
             saveCombatants();
-            renderCombatants(); // Re-render to reflect changes, especially if initiative affects order or sorting
+            // Re-render only if there was a meaningful change, or if a number was clamped.
+            // This is often good practice to ensure UI consistency.
+            if (newValue !== oldValue || isNumericField) {
+                 renderCombatants();
+            }
         });
 
-        // Add keydown event for 'Enter' to blur and save
         cell.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                e.preventDefault(); // Prevent new line
-                e.target.blur();    // Trigger blur event
+                e.preventDefault();
+                e.target.blur();
             }
         });
     });
@@ -634,29 +762,105 @@ function attachImageEditEvent(row, c) {
 // ... (rest of your existing code, no changes needed below this) ...
 
 
-function parseHP(hpText, currentHP, maxHP) {
-    // Handle math operations (e.g., +5, -10)
-    const mathMatch = hpText.match(/^([+-]?\d+)$/);
-    if (mathMatch) {
-        const delta = parseInt(mathMatch[1]);
-        return [currentHP + delta, maxHP];
+function showHpPopup(combatantId, event, fieldType) { // Added fieldType parameter
+    currentCombatantIdForHp = combatantId;
+    currentHpFieldToEdit = fieldType; // Store whether it's HP or Temp HP
+    const combatant = findCombatantById(combatantId);
+
+    if (!combatant) {
+        console.error("Combatant not found for HP popup:", combatantId);
+        return;
     }
 
-    // Handle "current/max" format (e.g., 20/30)
-    const fullMatch = hpText.match(/^(\d+)\s*\/\s*(\d+)$/);
-    if (fullMatch) {
-        return [parseInt(fullMatch[1]), parseInt(fullMatch[2])];
-    }
+    // Get the bounding rectangle of the cell that was right-clicked
+    const cellRect = event.target.getBoundingClientRect();
 
-    // Handle single number (overwrite current HP)
-    const single = parseInt(hpText);
-    if (!isNaN(single)) {
-        return [single, maxHP]; // Keep original max HP if not provided
-    }
+    // Position the popup
+    hpPopup.style.left = `${cellRect.left + window.scrollX}px`;
+    hpPopup.style.top = `${cellRect.bottom + window.scrollY + 8}px`; // 8px spacing below the cell
+    hpPopup.classList.remove('hidden'); // Show the popup
 
-    // If no valid format, return original values
-    return [currentHP, maxHP];
+    // Clear inputs and focus based on the field type
+    healInput.value = '';
+    damageInput.value = '';
+    if (fieldType === 'hp') {
+        healInput.focus();
+    } else if (fieldType === 'tempHp') {
+        // Maybe default to damage input for temp HP or keep heal focus
+        damageInput.focus(); // Focusing damage for temp HP makes sense
+    }
+    console.log('Popup shown for:', combatantId, 'at', hpPopup.style.left, hpPopup.style.top);
 }
+
+function applyHpChange() {
+    if (!currentCombatantIdForHp) return;
+
+    const combatant = findCombatantById(currentCombatantIdForHp);
+    if (!combatant) return;
+
+    const healAmount = parseInt(healInput.value, 10) || 0;
+    const damageAmount = parseInt(damageInput.value, 10) || 0;
+
+    // Log old values before modification for accurate history
+    const oldHp = combatant.hp;
+    const oldTempHp = combatant.tempHp;
+
+    if (currentHpFieldToEdit === 'hp') {
+        // Applying changes to main HP
+        if (healAmount > 0) {
+            combatant.hp = Math.min(combatant.maxHp, combatant.hp + healAmount);
+            logChange(`${combatant.name} healed: ${oldHp}/${combatant.maxHp} → ${combatant.hp}/${combatant.maxHp}`);
+        }
+        if (damageAmount > 0) {
+            let remainingDamage = damageAmount;
+            // Apply damage to temporary HP first
+            if (combatant.tempHp > 0) {
+                const damageToTempHp = Math.min(combatant.tempHp, remainingDamage);
+                combatant.tempHp -= damageToTempHp;
+                remainingDamage -= damageToTempHp;
+                if (combatant.tempHp < oldTempHp) {
+                    logChange(`${combatant.name} temp HP changed: ${oldTempHp} → ${combatant.tempHp}`);
+                }
+            }
+            // Apply remaining damage to regular HP
+            if (remainingDamage > 0) {
+                combatant.hp = Math.max(0, combatant.hp - remainingDamage);
+                logChange(`${combatant.name} HP changed: ${oldHp}/${combatant.maxHp} → ${combatant.hp}/${combatant.maxHp}`);
+            }
+        }
+    } else if (currentHpFieldToEdit === 'tempHp') {
+        // Applying changes specifically to temporary HP
+        if (healAmount > 0) {
+            combatant.tempHp = combatant.tempHp + healAmount; // Temp HP can exceed max HP
+            logChange(`${combatant.name} temp HP gained: ${oldTempHp} → ${combatant.tempHp}`);
+        }
+        if (damageAmount > 0) {
+            combatant.tempHp = Math.max(0, combatant.tempHp - damageAmount);
+            logChange(`${combatant.name} temp HP lost: ${oldTempHp} → ${combatant.tempHp}`);
+        }
+    }
+
+    saveCombatants();
+    renderCombatants();
+    hpPopup.classList.add('hidden'); // Hide popup after applying changes
+    currentCombatantIdForHp = null;
+    currentHpFieldToEdit = null;
+}
+
+// Close HP popup if clicking outside
+window.addEventListener('click', (e) => {
+    // Check if the clicked element is NOT the popup itself AND NOT one of its children
+    // AND if a combatant ID is currently associated with the popup (meaning it's open)
+    if (e.target !== hpPopup && !hpPopup.contains(e.target) && currentCombatantIdForHp) {
+        // Also ensure the click wasn't on the cell that opened the popup
+        const clickedCell = e.target.closest('.cell-hp, [data-field="tempHp"]');
+        if (!clickedCell || clickedCell.parentNode.dataset.combatantId !== currentCombatantIdForHp || (clickedCell.dataset.field !== currentHpFieldToEdit && clickedCell.dataset.field !== 'hp' && clickedCell.dataset.field !== 'tempHp')) {
+            hpPopup.classList.add('hidden');
+            currentCombatantIdForHp = null;
+            currentHpFieldToEdit = null;
+        }
+    }
+}, true); // Use capture phase to ensure this runs before other click handlers
 
 
 // ========== PART 5: Turn Logic & Status Effects ==========
@@ -932,15 +1136,15 @@ document.getElementById('importInput').addEventListener('change', function (e) {
 
             // ✅ Ensure tempHp and maxHp exist on all combatants (this block is good for migration)
             function ensureHpFieldsExist(combatant) {
-                if (combatant.isGroup && combatant.members) {
-                    combatant.members.forEach(member => {
-                        if (member.tempHp === undefined) member.tempHp = 0;
-                        if (member.maxHp === undefined) member.maxHp = member.hp;
-                    });
-                } else {
-                    if (combatant.tempHp === undefined) combatant.tempHp = 0;
-                    if (combatant.maxHp === undefined) combatant.maxHp = combatant.hp;
-                }
+            if (combatant.isGroup && combatant.members) {
+                combatant.members.forEach(member => {
+                if (typeof member.tempHp !== 'number') member.tempHp = 0;
+                if (typeof member.maxHp !== 'number') member.maxHp = member.hp || 1;
+                });
+            } else {
+                if (typeof combatant.tempHp !== 'number') combatant.tempHp = 0;
+                if (typeof combatant.maxHp !== 'number') combatant.maxHp = combatant.hp || 1;
+            }
             }
 
             combatants.forEach(ensureHpFieldsExist);
