@@ -121,39 +121,54 @@ showMoreBtn.addEventListener('click', () => {
 
 // ... (your existing code) ...
 
+// REPLACE this function in script.js
 modalForm.addEventListener('submit', (e) => {
     e.preventDefault();
 
     const name = document.getElementById('modalName').value.trim();
     const init = parseInt(document.getElementById('modalInit').value, 10);
-    // Removed the old ac, hp, maxHp parsing here
+    const isSpellcaster = document.getElementById('modalIsSpellcaster').checked;
 
     if (!name || isNaN(init)) {
         alert('Please enter a name and a valid initiative.');
         return;
     }
 
-    // --- PASTE THE NEW CODE HERE ---
     const hp = parseInt(document.getElementById('modalHP').value, 10);
     const maxHp = parseInt(document.getElementById('modalMaxHP').value, 10);
 
-    const initialHp = isNaN(hp) ? 10 : hp; // Default to 10 if no HP given
-    const initialMaxHp = isNaN(maxHp) ? initialHp : maxHp; // Default max to initial HP if no max given
+    const initialHp = isNaN(hp) ? 10 : hp;
+    const initialMaxHp = isNaN(maxHp) ? initialHp : maxHp;
 
     const newCombatant = {
         id: generateUniqueId(),
         name: getUniqueName(name),
         init,
-        ac: parseInt(document.getElementById('modalAC').value || 0, 10), // AC can default to 0
+        ac: parseInt(document.getElementById('modalAC').value || 0, 10),
         hp: initialHp,
         tempHp: 0,
         maxHp: initialMaxHp,
-        role: document.getElementById('modalRole').value || 'player', // Make sure role is correctly assigned
+        role: document.getElementById('modalRole').value || 'player',
         statusEffects: [],
         isGroup: false,
-        previousInit: init
+        previousInit: init,
+        spellSlotsVisible: false // Start with panel closed
     };
-    // --- END OF NEW CODE ---
+
+    // If the combatant is a spellcaster, initialize their spell slot data
+    if (isSpellcaster) {
+        newCombatant.spellSlots = {
+            1: { current: 0, max: 0 },
+            2: { current: 0, max: 0 },
+            3: { current: 0, max: 0 },
+            4: { current: 0, max: 0 },
+            5: { current: 0, max: 0 },
+            6: { current: 0, max: 0 },
+            7: { current: 0, max: 0 },
+            8: { current: 0, max: 0 },
+            9: { current: 0, max: 0 },
+        };
+    }
 
     combatants.push(newCombatant);
     logChange(`➕ Added ${newCombatant.name} (Init: ${newCombatant.init})`);
@@ -161,7 +176,7 @@ modalForm.addEventListener('submit', (e) => {
     renderCombatants();
 
     creatureModal.classList.add('hidden');
-    // Form is reset on open, no need here.
+    modalForm.reset(); // Reset form after submission
 });
 
 // ... (rest of your existing code) ...
@@ -190,6 +205,7 @@ function loadCombatants() {
     try {
         const state = JSON.parse(saved);
         combatants = state.combatants || [];
+        combatants.forEach(migrateCombatant); // <<< ADD THIS LINE
         round = state.round || 1;
         currentTurnIndex = state.currentTurnIndex || 0;
         historyLog = state.historyLog || [];
@@ -267,49 +283,50 @@ document.getElementById('addGroupBtn').addEventListener('click', () => {
 
 // ========== PART 3: Rendering Combatants & Drop Zones ==========
 
+
+// REPLACE this function in script.js
 function renderCombatants() {
     const list = document.getElementById('combatantList');
     list.innerHTML = '';
     document.body.classList.remove('dragging');
 
-    // Sort combatants first, then iterate
     const sortedCombatants = [...combatants].sort((a, b) => b.init - a.init);
 
     sortedCombatants.forEach((item, index) => {
-        // Drop zone *before* each main item or group
         list.appendChild(createDropZone(item, null, index, 'before'));
 
         if (item.isGroup) {
             const groupHeader = createGroupRow(item);
             list.appendChild(groupHeader);
-
-            // Drop zone *inside* the group, before the first member (to add to an empty group)
             list.appendChild(createDropZone(item, item, 0, 'group-internal'));
 
             item.members.forEach((member, memberIndex) => {
                 const row = createCombatantRow(member, true, item);
                 list.appendChild(row);
-
-                // Drop zone *between* members within a group
+                // If the member's spell slot panel should be visible, render it
+                if (member.spellSlotsVisible) {
+                    list.appendChild(createSpellSlotPanel(member));
+                }
                 list.appendChild(createDropZone(member, item, memberIndex + 1, 'group-internal'));
             });
-
         } else {
             const row = createCombatantRow(item, false, null);
             list.appendChild(row);
+            // If the combatant's spell slot panel should be visible, render it
+            if (item.spellSlotsVisible) {
+                list.appendChild(createSpellSlotPanel(item));
+            }
         }
     });
 
-    // Final drop zone *after* the last item/group
     if (sortedCombatants.length > 0) {
         list.appendChild(createDropZone(null, null, sortedCombatants.length, 'after'));
     } else {
-        // If no combatants, add a general drop zone to add the first one
         list.appendChild(createDropZone(null, null, 0, 'empty-list'));
     }
 
     updateTurnDisplay();
-    saveCombatants(); // Ensure state is saved after rendering
+    saveCombatants();
 }
 
 
@@ -514,6 +531,7 @@ function removeCombatantById(id) {
 
 // ========== PART 4: Combatant Row, Status Effects & Actions ==========
 
+// REPLACE this function in script.js
 function createCombatantRow(c, isGrouped = false, groupRef = null) {
     const row = document.createElement('div');
     row.className = 'creature-row';
@@ -552,7 +570,11 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
     const imageContent = c.imageUrl ? `<img src="${c.imageUrl}" alt="${c.name}" class="combatant-image">` : '🧍';
     const imageCell = `<div class="cell image-cell" data-field="imageUrl">${imageContent}</div>`;
 
-    // In script.js (inside createCombatantRow function)
+    // ADD the spell slot button logic here
+    const spellSlotButton = c.spellSlots ?
+        `<button onclick="toggleSpellSlots('${c.id}')" title="Toggle Spell Slots">🪄</button>` :
+        '';
+
     row.innerHTML = `
         ${imageCell}
         <div class="cell init-cell" ${isGrouped ? '' : 'contenteditable="true"'} data-field="init">
@@ -568,6 +590,7 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
         <div class="cell action-cell">
             <button onclick="duplicateCombatant('${c.id}')" title="Duplicate Combatant">+</button>
             ${groupRef ? `<button onclick="removeFromGroup('${c.id}', '${groupRef.id}')" title="Remove from Group">⬅</button>` : ''}
+            ${spellSlotButton} <!-- The new button is added here -->
             <button onclick="deleteCombatant('${c.id}')" title="Delete Combatant">🗑</button>
         </div>
     `;
@@ -575,9 +598,7 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
     attachEditableEvents(row, c);
     attachImageEditEvent(row, c);
 
-
-    // Context menu for HP and Temp HP cells
-    const hpCell = row.querySelector('[data-field="hp"]');  // FIXED
+    const hpCell = row.querySelector('[data-field="hp"]');
     if (hpCell) {
         hpCell.addEventListener('contextmenu', (e) => {
             e.preventDefault();
@@ -592,7 +613,6 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
             showHpPopup(c.id, e, 'tempHp');
         });
     }
-
 
     return row;
 }
@@ -970,24 +990,27 @@ function updateTurnDisplay() {
 
 // ========== PART 6: Duplication, Delete, Export/Import, Log Panel ==========
 
+// REPLACE your old duplicateCombatant function with this one in script.js
+
 function duplicateCombatant(id) {
     const original = findCombatantById(id);
     if (!original) return;
 
-    const clone = JSON.parse(JSON.stringify(original)); // Deep clone
+    const clone = JSON.parse(JSON.stringify(original)); // Deep clone handles spellSlots
     clone.id = generateUniqueId();
     clone.name = getUniqueName(original.name);
-    clone.statusEffects = [...(original.statusEffects || [])]; // Ensure status effects are cloned correctly
-    clone.previousInit = original.init; // Store original init for duplicated members
+    clone.statusEffects = [...(original.statusEffects || [])];
+    clone.previousInit = original.init;
+    clone.spellSlotsVisible = false; // Ensure panel is closed on new clone
     clone.members = original.isGroup ? original.members.map(member => ({
-        ...member,
-        id: generateUniqueId(), // New IDs for duplicated group members
+        ...JSON.parse(JSON.stringify(member)), // Deep clone members too
+        id: generateUniqueId(),
         name: getUniqueName(member.name),
-        previousInit: member.init
+        previousInit: member.init,
+        spellSlotsVisible: false
     })) : [];
 
-
-    // If the original was part of a group, add the clone to the same group's members
+    // ... rest of the function is the same
     let addedToGroup = false;
     for (const group of combatants) {
         if (group.isGroup && group.members.some(m => m.id === id)) {
@@ -997,7 +1020,6 @@ function duplicateCombatant(id) {
         }
     }
 
-    // If not added to a group (i.e., it was a top-level combatant or group itself)
     if (!addedToGroup) {
         combatants.push(clone);
     }
@@ -1006,6 +1028,24 @@ function duplicateCombatant(id) {
     saveCombatants();
     renderCombatants();
 }
+
+
+
+// ADD this new helper function anywhere in script.js
+
+function migrateCombatant(c) {
+    // If a combatant has spell slots but no visibility flag, add it.
+    if (c.spellSlots && typeof c.spellSlotsVisible === 'undefined') {
+        c.spellSlotsVisible = false;
+    }
+    // Do the same for members of a group
+    if (c.isGroup && c.members) {
+        c.members.forEach(migrateCombatant);
+    }
+}
+
+
+
 
 function deleteCombatant(id) {
     let name = '';
@@ -1113,6 +1153,7 @@ document.getElementById('importInput').addEventListener('change', function (e) {
             const state = JSON.parse(event.target.result);
 
             combatants = state.combatants || [];
+            combatants.forEach(migrateCombatant); // <<< ADD THIS LINE
             round = state.round || 1;
             currentTurnIndex = state.currentTurnIndex || 0;
             historyLog = state.historyLog || [];
@@ -1207,3 +1248,97 @@ document.getElementById('toggleLogBtn').addEventListener('click', () => {
 document.addEventListener('DOMContentLoaded', loadCombatants);
 
 
+
+// ADD these new functions to script.js
+
+function toggleSpellSlots(id) {
+    const combatant = findCombatantById(id);
+    if (combatant && combatant.spellSlots) {
+        combatant.spellSlotsVisible = !combatant.spellSlotsVisible;
+        renderCombatants();
+    }
+}
+
+function adjustSpellSlot(id, level, amount) {
+    const combatant = findCombatantById(id);
+    if (!combatant || !combatant.spellSlots || !combatant.spellSlots[level]) return;
+
+    const slot = combatant.spellSlots[level];
+    const newCurrent = slot.current + amount;
+
+    // Clamp the value between 0 and max
+    slot.current = Math.max(0, Math.min(slot.max, newCurrent));
+
+    const action = amount < 0 ? 'used' : 'regained';
+    logChange(`${combatant.name} ${action} a level ${level} spell slot. (${slot.current}/${slot.max})`);
+    
+    saveCombatants();
+    renderCombatants();
+}
+
+function updateMaxSlots(id, level, value) {
+    const combatant = findCombatantById(id);
+    if (!combatant || !combatant.spellSlots || !combatant.spellSlots[level]) return;
+
+    const maxSlots = parseInt(value, 10);
+    if (isNaN(maxSlots) || maxSlots < 0) return;
+
+    const slot = combatant.spellSlots[level];
+    slot.max = maxSlots;
+    // Ensure current slots don't exceed the new max
+    slot.current = Math.min(slot.current, slot.max);
+
+    logChange(`${combatant.name}'s max level ${level} spell slots set to ${slot.max}`);
+
+    saveCombatants();
+    // No need to render here, blur event will trigger it if needed, or rely on other actions.
+}
+
+function createSpellSlotPanel(c) {
+    const panel = document.createElement('div');
+    panel.className = 'spell-slot-panel';
+    panel.dataset.combatantId = c.id;
+
+    let content = '';
+    for (const level in c.spellSlots) {
+        const slotData = c.spellSlots[level];
+        // Only display spell levels where the character has at least one max slot
+        if (slotData.max > 0) {
+            content += `
+                <div class="spell-level-row">
+                    <div class="spell-level-label">Lvl ${level}</div>
+                    <div class="spell-slot-display">
+                        <input type="number" class="max-slot-input" value="${slotData.max}" 
+                               onblur="updateMaxSlots('${c.id}', ${level}, this.value)" 
+                               min="0" title="Max Slots">
+                        <span>/</span>
+                        <span>${slotData.current} Used</span>
+                    </div>
+                    <div class="spell-slot-controls">
+                        <button onclick="adjustSpellSlot('${c.id}', ${level}, 1)" title="Use Slot">+</button>
+                        <button onclick="adjustSpellSlot('${c.id}', ${level}, -1)" title="Regain Slot">-</button>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    // Add a row for setting max slots for levels that are currently 0
+    content += `<div class="spell-level-row add-slot-level-row">
+                    <div class="spell-level-label">Set Max Slots</div>
+                    ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(level => {
+                        const slotData = c.spellSlots[level];
+                        if (slotData.max === 0) {
+                            return `<div class="spell-slot-display">
+                                L${level}: <input type="number" class="max-slot-input" value="0" 
+                                       onblur="updateMaxSlots('${c.id}', ${level}, this.value); renderCombatants();" 
+                                       min="0">
+                            </div>`;
+                        }
+                        return '';
+                    }).join('')}
+                </div>`;
+
+    panel.innerHTML = content;
+    return panel;
+}

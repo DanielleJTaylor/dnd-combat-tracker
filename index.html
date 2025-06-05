@@ -65,6 +65,7 @@
         <input type="number" id="modalInit" placeholder="Initiative" required />
         <input type="text" id="modalImage" placeholder="Image URL (optional)" />
         <button type="button" id="showMoreBtn">+ More Fields</button>
+        <!-- Inside the #extraFields div in your index.html -->
         <div id="extraFields" class="hidden">
           <input type="number" id="modalAC" placeholder="Armor Class" />
           <input type="number" id="modalHP" placeholder="Current HP" />
@@ -73,6 +74,11 @@
             <option value="player">Player</option>
             <option value="dm">DM</option>
           </select>
+          <!-- ADD THIS DIV -->
+          <div class="modal-checkbox-field">
+              <input type="checkbox" id="modalIsSpellcaster" />
+              <label for="modalIsSpellcaster">Is Spellcaster?</label>
+          </div>
         </div>
         <button type="submit">Add Creature</button>
       </form>
