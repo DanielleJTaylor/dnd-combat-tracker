@@ -8,17 +8,6 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 </head>
 
-<div id="hpPopup" class="hp-popup">
-  <div>
-    <label>Heal:</label>
-    <input type="number" id="healInput" />
-  </div>
-  <div>
-    <label>Damage:</label>
-    <input type="number" id="damageInput" />
-  </div>
-  <button onclick="applyHpChange()">Apply</button>
-</div>
 
 <body class="light">
   <header>
@@ -97,13 +86,12 @@
 
 
   <!-- HP Popup Panel -->
-  <div id="hpPopup" class="modal hidden" style="position: absolute; z-index: 9999; background: #fff; border: 1px solid #ccc; padding: 1em; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.3);">
+  <div id="hpPopup" class="modal hidden">
     <h3>Edit HP</h3>
     <label>Heal: <input type="number" id="healInput" /></label><br />
     <label>Damage: <input type="number" id="damageInput" /></label><br />
     <button onclick="applyHpChange()">Apply</button>
   </div>
-
 
 
   <script src="script.js"></script>

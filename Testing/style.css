@@ -331,31 +331,51 @@ body.light button:hover {
 
 
 
+
+
+/* In your style.css */
 #hpPopup {
-  background-color: white;
-  color: black;
-  display: none;
+  position: absolute;
+  z-index: 9999;
+  background: #fff;
+  border: 1px solid #ccc;
   padding: 1em;
-  border: 1px solid #aaa;
   border-radius: 8px;
-  box-shadow: 2px 2px 10px rgba(0,0,0,0.25);
-  font-size: 0.9rem;
-  z-index: 10000;
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+#hpPopup.hidden {
+  display: none !important;
 }
 
 
-.hp-popup input {
-  width: 60px;
-  margin: 4px;
-  text-align: center;
+/* Also, ensure your popup styling is consistent with your theme */
+body.dark #hpPopup {
+    background-color: var(--bg-dark); /* Or a slightly lighter dark background */
+    color: var(--text-light);
+    border-color: #555;
+    box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
 }
 
-.hp-popup button {
-  margin-top: 6px;
-  padding: 4px 8px;
-  background-color: var(--accent);
-  border: none;
-  cursor: pointer;
-  font-size: 0.8rem;
-  border-radius: 4px;
+body.light #hpPopup {
+    background-color: #fffaf0; /* Light theme background */
+    color: #4a3c1a; /* Light theme text color */
+    border-color: #d0bfa2; /* Light theme border color */
+}
+
+/* And ensure the inputs and buttons inside the popup follow the theme */
+#hpPopup input {
+  background-color: #eee; /* Lighter input background */
+  color: #333;
+  border: 1px solid #ccc;
+}
+
+body.dark #hpPopup input {
+    background-color: #222;
+    color: var(--text-light);
+    border-color: #444;
+}
+
+#hpPopup button {
+  background-color: var(--accent); /* Consistent accent color */
+  color: black; /* Text on accent should be black for readability */
 }
