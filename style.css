@@ -1,4 +1,4 @@
-/* ========== PART 1: Global Styles & Header ========== */
+/* ========== GLOBAL STYLES & HEADER ========== */
 
 :root {
   --bg-dark: #1e1e1e;
@@ -114,7 +114,7 @@ header {
 }
 
 
-/* ========== PART 2: Combat Table & Rows ========== */
+/* ========== PART 2: COMBAT TABLE & ROWS ========== */
 
 .tracker-table {
   margin: 1em auto;
@@ -175,9 +175,16 @@ header {
 }
 
 .group-member {
-  background-color: #1b1b1b;
+  background-color: #2e2e2e;
   padding-left: 24px;
 }
+
+/* NEW: Style the drop zones within a group to match the group background and complete the block effect. */
+.drop-zone[data-drop-type="group-internal"] {
+    background-color: #2e2e2e;
+}
+
+
 
 .group-member .cell:first-child {
   visibility: hidden;
@@ -204,10 +211,8 @@ header {
   border-radius: 4px;
 }
 
-/* Add to your style.css */
-
 .drop-zone {
-    height: 10px; /* Make them visible but small */
+    height: 10px;
     background-color: transparent;
     transition: background-color 0.2s ease-in-out;
     margin: 0;
@@ -215,26 +220,23 @@ header {
 }
 
 .drop-zone.highlight {
-    background-color: rgba(0, 191, 166, 0.3); /* Accent color with transparency */
+    background-color: rgba(0, 191, 166, 0.3);
     border: 1px dashed var(--accent);
-    height: 30px; /* Make it more prominent when highlighted */
+    height: 30px;
 }
 
-/* Optional: Style for current turn */
 .creature-row.current-turn {
-    background-color: rgba(0, 191, 166, 0.15); /* Light highlight for current turn */
-    border-left: 5px solid var(--accent); /* Accent border */
+    background-color: rgba(0, 191, 166, 0.15);
+    border-left: 5px solid var(--accent);
 }
 
-/* Optional: Styling for images in cells */
 .combatant-image {
-    width: 32px; /* Adjust as needed */
-    height: 32px; /* Adjust as needed */
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     object-fit: cover;
 }
 
-/* Adjust cell padding/alignment if needed for images */
 .cell.image-cell {
     display: flex;
     align-items: center;
@@ -265,12 +267,10 @@ header {
   line-height: 1.4;
 }
 
-
-
+/* ========== LIGHT THEME ========== */
 
 body.light {
   background-color: #fdf6e3;
-  background-image: none;
   color: #4a3c1a;
 }
 
@@ -292,7 +292,12 @@ body.light .creature-row {
 body.light .group-header {
   background-color: #e9d9b0;
   color: #4a3c1a;
-  border-top: 2px solid #d0bfa2;
+  /* MODIFICATION: Matched border to background to remove the line */
+  border-top: 2px solid #e9d9b0;
+}
+
+body.light .group-member {
+  background-color: #e9d9b0;
 }
 
 body.light .tracker-table-header {
@@ -329,11 +334,14 @@ body.light button:hover {
   background-color: #6ca05b;
 }
 
+/* NEW: Make group members and internal drop zones match the light theme header. */
+body.light .group-member,
+body.light .drop-zone[data-drop-type="group-internal"] {
+  background-color: #e9d9b0;
+}
 
+/* ========== HP POPUP STYLES ========== */
 
-
-
-/* In your style.css */
 #hpPopup {
   position: absolute;
   z-index: 9999;
@@ -347,26 +355,25 @@ body.light button:hover {
   display: none !important;
 }
 
-
-/* Also, ensure your popup styling is consistent with your theme */
 body.dark #hpPopup {
-    background-color: var(--bg-dark); /* Or a slightly lighter dark background */
+    background-color: var(--bg-light);
     color: var(--text-light);
     border-color: #555;
     box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
 }
 
 body.light #hpPopup {
-    background-color: #fffaf0; /* Light theme background */
-    color: #4a3c1a; /* Light theme text color */
-    border-color: #d0bfa2; /* Light theme border color */
+    background-color: #fffaf0;
+    color: #4a3c1a;
+    border-color: #d0bfa2;
 }
 
-/* And ensure the inputs and buttons inside the popup follow the theme */
 #hpPopup input {
-  background-color: #eee; /* Lighter input background */
+  background-color: #eee;
   color: #333;
   border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 4px;
 }
 
 body.dark #hpPopup input {
@@ -375,8 +382,6 @@ body.dark #hpPopup input {
     border-color: #444;
 }
 
-
-/* Style for the new HP Popup layout */
 .hp-popup-field {
   display: flex;
   justify-content: space-between;
@@ -388,8 +393,13 @@ body.dark #hpPopup input {
 }
 
 #hpPopup button {
-  background-color: var(--accent); /* Consistent accent color */
-  color: black; /* Text on accent should be black for readability */
+  background-color: var(--accent);
+  color: black;
   margin-top: 10px;
   width: 100%;
+}
+
+body.light #hpPopup button {
+    background-color: #7fb069;
+    color: white;
 }
