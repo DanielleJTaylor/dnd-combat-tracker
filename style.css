@@ -128,11 +128,12 @@ header {
 .tracker-table-header,
 .creature-row {
   display: grid;
-  grid-template-columns: 40px 60px 1fr 60px 100px 1fr 80px 140px;
+  grid-template-columns: 40px 60px 1fr 60px 90px 70px 70px 150px 90px 150px;
   align-items: center;
   padding: 6px 8px;
   border-bottom: 1px solid #333;
 }
+
 
 .tracker-table-header {
   font-weight: bold;
@@ -153,7 +154,9 @@ header {
 .creature-row .cell {
   padding: 4px 6px;
   overflow-wrap: break-word;
+  word-break: break-word;
 }
+
 
 .cell[contenteditable="true"] {
   background-color: #222;

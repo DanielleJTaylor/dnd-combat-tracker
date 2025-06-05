@@ -131,12 +131,14 @@ modalForm.addEventListener('submit', (e) => {
         init,
         ac,
         hp,
-        maxHp,
+        tempHp: 0, // NEW
+        maxHp: maxHp || hp,
         role,
         statusEffects: [],
         isGroup: false,
-        previousInit: init // Store original initiative for potential group exit
+        previousInit: init
     };
+
 
     combatants.push(newCombatant);
     logChange(`➕ Added ${newCombatant.name} (Init: ${newCombatant.init})`);
@@ -304,19 +306,26 @@ function createGroupRow(group) {
         e.dataTransfer.effectAllowed = "move";
     };
 
+
     row.innerHTML = `
-        <div class="cell"></div>
-        <div class="cell init-cell" contenteditable="true" data-field="init">${group.init}</div>
-        <div class="cell cell-name" contenteditable="true">${group.name}</div>
-        <div class="cell cell-ac" contenteditable="true">${group.ac || ''}</div>
-        <div class="cell cell-hp">${group.hp || ''}${group.maxHp ? `/${group.maxHp}` : ''}</div>
-        <div class="cell"></div>
-        <div class="cell">${group.role || 'DM'}</div>
-        <div class="cell">
-            <button onclick="duplicateCombatant('${group.id}')">+</button>
-            <button onclick="deleteCombatant('${group.id}')">🗑</button>
+        ${imageCell}
+        <div class="cell init-cell" ${isGrouped ? '' : 'contenteditable="true"'} data-field="init">
+            ${isGrouped ? '' : c.init}
+        </div>
+        <div class="cell cell-name" contenteditable="true" data-field="name">${c.name}</div>
+        <div class="cell cell-ac" contenteditable="true" data-field="ac">${c.ac}</div>
+        <div class="cell cell-hp" contenteditable="true" data-field="hp">${c.hp}/${c.maxHp}</div>
+        <div class="cell" contenteditable="true" data-field="tempHp">${c.tempHp || 0}</div>
+        <div class="cell" contenteditable="true" data-field="maxHp">${c.maxHp || 0}</div>
+        <div class="cell status-cell">${statusTags} ${statusDropdown}</div>
+        <div class="cell role-cell" contenteditable="true" data-field="role">${c.role || 'player'}</div>
+        <div class="cell action-cell">
+            <button onclick="duplicateCombatant('${c.id}')" title="Duplicate Combatant">+</button>
+            ${groupRef ? `<button onclick="removeFromGroup('${c.id}', '${groupRef.id}')" title="Remove from Group">⬅</button>` : ''}
+            <button onclick="deleteCombatant('${c.id}')" title="Delete Combatant">🗑</button>
         </div>
     `;
+
 
     // Attach editable events for group name/init/ac/hp
     row.querySelectorAll('[contenteditable="true"]').forEach(cell => {
@@ -460,6 +469,7 @@ function removeCombatantById(id) {
 
 // ... (rest of your existing code) ...
 
+
 // ========== PART 4: Combatant Row, Status Effects & Actions ==========
 
 function createCombatantRow(c, isGrouped = false, groupRef = null) {
@@ -501,19 +511,18 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
     `;
 
     // Image cell placeholder (replace with actual image if c.imageUrl exists)
-    // Make image cell editable
     const imageContent = c.imageUrl ? `<img src="${c.imageUrl}" alt="${c.name}" class="combatant-image">` : '🧍';
     const imageCell = `<div class="cell image-cell" data-field="imageUrl">${imageContent}</div>`;
 
     row.innerHTML = `
         ${imageCell}
         <div class="cell init-cell" ${isGrouped ? '' : 'contenteditable="true"'} data-field="init">
-        ${isGrouped ? '' : c.init}
+            ${isGrouped ? '' : c.init}
         </div>
         <div class="cell cell-name" contenteditable="true" data-field="name">${c.name}</div>
         <div class="cell cell-ac" contenteditable="true" data-field="ac">${c.ac}</div>
-        <div class="cell cell-hp" contenteditable="true" data-field="hp">${c.hp}/${c.maxHp}</div>
-        <div class="cell status-cell">${statusTags} ${statusDropdown}</div>
+        <div class="cell cell-hp" contenteditable="true" data-field="hp">${c.hp}</div>
+        <div class="cell" contenteditable="true" data-field="tempHp">${c.tempHp || 0}</div>  <div class="cell" contenteditable="true" data-field="maxHp">${c.maxHp || 0}</div>    <div class="cell status-cell">${statusTags} ${statusDropdown}</div>
         <div class="cell role-cell" contenteditable="true" data-field="role">${c.role || 'player'}</div>
         <div class="cell action-cell">
             <button onclick="duplicateCombatant('${c.id}')" title="Duplicate Combatant">+</button>
@@ -522,10 +531,12 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
         </div>
     `;
 
-    attachEditableEvents(row, c); // This will handle blur and keydown for contenteditable fields
-    attachImageEditEvent(row, c); // New function for image editing
+    attachEditableEvents(row, c);
+    attachImageEditEvent(row, c);
     return row;
 }
+
+
 
 function attachEditableEvents(row, c) {
     row.querySelectorAll('[contenteditable="true"]').forEach(cell => {
@@ -886,11 +897,26 @@ document.getElementById('importInput').addEventListener('change', function (e) {
     const reader = new FileReader();
     reader.onload = function (event) {
         try {
-            const state = JSON.parse(event.target.result);
             combatants = state.combatants || [];
             round = state.round || 1;
             currentTurnIndex = state.currentTurnIndex || 0;
             historyLog = state.historyLog || [];
+
+            // ✅ Ensure tempHp and maxHp exist on all combatants
+            function ensureHpFieldsExist(combatant) {
+                if (combatant.isGroup && combatant.members) {
+                    combatant.members.forEach(member => {
+                        if (member.tempHp === undefined) member.tempHp = 0;
+                        if (member.maxHp === undefined) member.maxHp = member.hp;
+                    });
+                } else {
+                    if (combatant.tempHp === undefined) combatant.tempHp = 0;
+                    if (combatant.maxHp === undefined) combatant.maxHp = combatant.hp;
+                }
+            }
+
+            combatants.forEach(ensureHpFieldsExist);
+
 
             // Apply theme state from loaded data
             if (state.isDarkTheme) {
@@ -958,3 +984,5 @@ document.getElementById('toggleLogBtn').addEventListener('click', () => {
 
 // Initial load when script starts
 document.addEventListener('DOMContentLoaded', loadCombatants);
+
+
