@@ -792,60 +792,81 @@ function showHpPopup(combatantId, event, fieldType) { // Added fieldType paramet
     console.log('Popup shown for:', combatantId, 'at', hpPopup.style.left, hpPopup.style.top);
 }
 
+
+
 function applyHpChange() {
     if (!currentCombatantIdForHp) return;
 
     const combatant = findCombatantById(currentCombatantIdForHp);
     if (!combatant) return;
 
+    // Get the amounts entered in the popup. Default to 0 if empty.
     const healAmount = parseInt(healInput.value, 10) || 0;
     const damageAmount = parseInt(damageInput.value, 10) || 0;
 
-    // Log old values before modification for accurate history
+    // Store the state before changes for accurate logging.
     const oldHp = combatant.hp;
     const oldTempHp = combatant.tempHp;
 
+    // --- LOGIC FOR RIGHT-CLICKING ON THE MAIN HP CELL ---
     if (currentHpFieldToEdit === 'hp') {
-        // Applying changes to main HP
+        
+        // --- Healing Logic ---
         if (healAmount > 0) {
+            // Add healing to current HP, but clamp it so it doesn't exceed the max HP.
             combatant.hp = Math.min(combatant.maxHp, combatant.hp + healAmount);
-            logChange(`${combatant.name} healed: ${oldHp}/${combatant.maxHp} → ${combatant.hp}/${combatant.maxHp}`);
+            logChange(`${combatant.name} healed for ${healAmount}. HP: ${oldHp}/${combatant.maxHp} → ${combatant.hp}/${combatant.maxHp}`);
         }
+
+        // --- Damage Logic (applied to main HP, but affects Temp HP first) ---
         if (damageAmount > 0) {
             let remainingDamage = damageAmount;
-            // Apply damage to temporary HP first
+            
+            // Step 1: Apply damage to Temporary HP first.
             if (combatant.tempHp > 0) {
                 const damageToTempHp = Math.min(combatant.tempHp, remainingDamage);
                 combatant.tempHp -= damageToTempHp;
-                remainingDamage -= damageToTempHp;
-                if (combatant.tempHp < oldTempHp) {
-                    logChange(`${combatant.name} temp HP changed: ${oldTempHp} → ${combatant.tempHp}`);
-                }
+                remainingDamage -= damageToTempHp; // Reduce the damage that still needs to be applied.
+                
+                // Log the change to Temp HP if it occurred.
+                logChange(`${combatant.name} took ${damageToTempHp} damage to Temp HP. Temp HP: ${oldTempHp} → ${combatant.tempHp}`);
             }
-            // Apply remaining damage to regular HP
+
+            // Step 2: Apply any leftover damage to regular HP.
             if (remainingDamage > 0) {
+                const oldMainHp = combatant.hp; // Get HP value *after* temp HP was hit
                 combatant.hp = Math.max(0, combatant.hp - remainingDamage);
-                logChange(`${combatant.name} HP changed: ${oldHp}/${combatant.maxHp} → ${combatant.hp}/${combatant.maxHp}`);
+                logChange(`${combatant.name} took ${remainingDamage} damage to main HP. HP: ${oldMainHp}/${combatant.maxHp} → ${combatant.hp}/${combatant.maxHp}`);
             }
         }
+
+    // --- LOGIC FOR RIGHT-CLICKING ON THE TEMP HP CELL ---
     } else if (currentHpFieldToEdit === 'tempHp') {
-        // Applying changes specifically to temporary HP
+        
+        // --- Gaining Temp HP ---
         if (healAmount > 0) {
-            combatant.tempHp = combatant.tempHp + healAmount; // Temp HP can exceed max HP
-            logChange(`${combatant.name} temp HP gained: ${oldTempHp} → ${combatant.tempHp}`);
+            // Simply add the value to the current Temp HP.
+            combatant.tempHp = combatant.tempHp + healAmount;
+            logChange(`${combatant.name} gained ${healAmount} Temp HP. Total: ${combatant.tempHp}`);
         }
+
+        // --- Losing Temp HP ---
         if (damageAmount > 0) {
+            // Subtract damage only from Temp HP, clamping at zero.
             combatant.tempHp = Math.max(0, combatant.tempHp - damageAmount);
-            logChange(`${combatant.name} temp HP lost: ${oldTempHp} → ${combatant.tempHp}`);
+            logChange(`${combatant.name} lost ${damageAmount} Temp HP. Remaining: ${combatant.tempHp}`);
         }
     }
 
+    // Save changes, re-render the list, and hide the popup.
     saveCombatants();
     renderCombatants();
-    hpPopup.classList.add('hidden'); // Hide popup after applying changes
+    hpPopup.classList.add('hidden');
     currentCombatantIdForHp = null;
     currentHpFieldToEdit = null;
 }
+
+
 
 // Close HP popup if clicking outside
 window.addEventListener('click', (e) => {
