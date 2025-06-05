@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>D&D Combat Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+</head>
+
+<body class="light">
+
+
+  <header>
+    <h1>🧝‍♂️ D&D Combat Tracker</h1>
+    <div class="theme-container">
+      <label class="theme-switch">
+        <input type="checkbox" id="themeToggle" />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="button-group">
+      <button id="addCombatantBtn">+ Add Combatant</button>
+      <button id="addGroupBtn">+ Add Group</button>
+      <button id="startEncounterBtn">▶ Start Encounter</button>
+    </div>
+  </header>
+
+  <main class="tracker-wrapper">
+    <div class="controls-row">
+      <button id="toggleLogBtn">📜 History Log</button>
+      <span id="roundCounter">Round: 1</span>
+      <button onclick="prevTurn()">⬅ Previous Turn</button>
+      <div id="currentTurnDisplay">🟢 Current Turn: <strong>None</strong></div>
+      <button onclick="nextTurn()">➡ Next Turn</button>
+      <button onclick="saveEncounter()">💾 Save</button>
+      <button onclick="triggerImport()">📂 Load</button>
+      <button onclick="exportToPDF()">🖨 Export</button>
+      <button onclick="clearData()">🗑️ Clear</button>
+      <input type="file" id="importInput" accept=".json" hidden />
+    </div>
+
+    <div id="combatTable" class="tracker-table">
+      <div class="tracker-table-header">
+        <div class="cell">🖼</div>
+        <div class="cell">INIT</div>
+        <div class="cell">NAME</div>
+        <div class="cell">AC</div>
+        <div class="cell">HP</div>
+        <div class="cell">Temp</div>   <!-- ✅ NEW COLUMN -->
+        <div class="cell">Max</div>    <!-- ✅ NEW COLUMN -->
+        <div class="cell">STATUS</div>
+        <div class="cell">ROLE</div>
+        <div class="cell">ACTIONS</div>
+      </div>
+      <div id="combatantList"></div>
+    </div>
+  </main>
+
+  <!-- Add Combatant Modal -->
+  <div id="creatureModal" class="modal hidden">
+    <div class="modal-content">
+      <form id="modalCreatureForm">
+        <h2>Add Combatant</h2>
+        <input type="text" id="modalName" placeholder="Name" required />
+        <input type="number" id="modalInit" placeholder="Initiative" required />
+        <input type="text" id="modalImage" placeholder="Image URL (optional)" />
+        <button type="button" id="showMoreBtn">+ More Fields</button>
+        <div id="extraFields" class="hidden">
+          <input type="number" id="modalAC" placeholder="Armor Class" />
+          <input type="number" id="modalHP" placeholder="Current HP" />
+          <input type="number" id="modalMaxHP" placeholder="Max HP" />
+          <select id="modalRole">
+            <option value="player">Player</option>
+            <option value="dm">DM</option>
+          </select>
+        </div>
+        <button type="submit">Add Creature</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tracker Log Panel -->
+  <section id="trackerContainer" class="tracker-log-panel">
+    <div id="historyLogContent" class="log-content"></div>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
+
+

@@ -1,0 +1,330 @@
+/* ========== PART 1: Global Styles & Header ========== */
+
+:root {
+  --bg-dark: #1e1e1e;
+  --bg-light: #2c2c2c;
+  --text-light: #f0f0f0;
+  --accent: #00bfa6;
+  --status-bg: #444;
+  --status-border: #888;
+  --dm-color: #f36;
+  --player-color: #6af;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+body.dark {
+  background-color: var(--bg-dark);
+  color: var(--text-light);
+}
+
+h1 {
+  font-size: 1.75rem;
+  margin: 0.5em 1em;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1em;
+  border-bottom: 2px solid var(--accent);
+  background-color: var(--bg-light);
+}
+
+.theme-container {
+  margin-left: auto;
+  padding-left: 1em;
+}
+
+.theme-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.theme-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.theme-switch .slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #666;
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.theme-switch .slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+.theme-switch input:checked + .slider {
+  background-color: var(--accent);
+}
+
+.theme-switch input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+.button-group button,
+.controls-row button {
+  background-color: var(--accent);
+  border: none;
+  color: black;
+  padding: 6px 12px;
+  margin: 4px;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.button-group button:hover,
+.controls-row button:hover {
+  background-color: #00d2b2;
+}
+
+.controls-row,
+.controls-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 0.5em 1em;
+  gap: 8px;
+  background-color: var(--bg-light);
+  border-bottom: 1px solid #444;
+}
+
+
+/* ========== PART 2: Combat Table & Rows ========== */
+
+.tracker-table {
+  margin: 1em auto;
+  width: 95%;
+  border-collapse: collapse;
+  background-color: var(--bg-light);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.tracker-table-header,
+.creature-row {
+  display: grid;
+  grid-template-columns: 40px 60px 1fr 60px 90px 70px 70px 150px 90px 150px;
+  align-items: center;
+  padding: 6px 8px;
+  border-bottom: 1px solid #333;
+}
+
+
+.tracker-table-header {
+  font-weight: bold;
+  background-color: #333;
+  color: var(--text-light);
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+.creature-row {
+  transition: background 0.2s;
+}
+
+.creature-row:hover {
+  background-color: #292929;
+}
+
+.creature-row .cell {
+  padding: 4px 6px;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+
+.cell[contenteditable="true"] {
+  background-color: #222;
+  border: 1px dashed #555;
+  border-radius: 4px;
+  padding: 2px 4px;
+  min-width: 40px;
+  cursor: text;
+}
+
+.group-header {
+  background-color: #2e2e2e;
+  font-weight: bold;
+  padding-left: 10px;
+  border-top: 2px solid var(--accent);
+}
+
+.group-member {
+  background-color: #1b1b1b;
+  padding-left: 24px;
+}
+
+.group-member .cell:first-child {
+  visibility: hidden;
+}
+
+.status-tag {
+  background-color: var(--status-bg);
+  border: 1px solid var(--status-border);
+  color: white;
+  border-radius: 12px;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  margin: 2px 4px 2px 0;
+  display: inline-block;
+}
+
+.cell select {
+  margin-top: 4px;
+  padding: 2px;
+  font-size: 0.8rem;
+  background-color: #111;
+  color: white;
+  border: 1px solid #444;
+  border-radius: 4px;
+}
+
+/* Add to your style.css */
+
+.drop-zone {
+    height: 10px; /* Make them visible but small */
+    background-color: transparent;
+    transition: background-color 0.2s ease-in-out;
+    margin: 0;
+    padding: 0;
+}
+
+.drop-zone.highlight {
+    background-color: rgba(0, 191, 166, 0.3); /* Accent color with transparency */
+    border: 1px dashed var(--accent);
+    height: 30px; /* Make it more prominent when highlighted */
+}
+
+/* Optional: Style for current turn */
+.creature-row.current-turn {
+    background-color: rgba(0, 191, 166, 0.15); /* Light highlight for current turn */
+    border-left: 5px solid var(--accent); /* Accent border */
+}
+
+/* Optional: Styling for images in cells */
+.combatant-image {
+    width: 32px; /* Adjust as needed */
+    height: 32px; /* Adjust as needed */
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* Adjust cell padding/alignment if needed for images */
+.cell.image-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tracker-log-panel {
+  position: fixed;
+  top: 0;
+  right: -400px;
+  width: 400px;
+  height: 100%;
+  background-color: #1e1e1e;
+  color: white;
+  border-left: 2px solid var(--accent);
+  overflow-y: auto;
+  transition: right 0.3s ease-in-out;
+  z-index: 999;
+  padding: 1em;
+}
+
+.tracker-log-panel.show-log {
+  right: 0;
+}
+
+.log-content {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+
+
+
+body.light {
+  background-color: #fdf6e3;
+  background-image: none;
+  color: #4a3c1a;
+}
+
+body.light header,
+body.light .controls-row {
+  background-color: #f6e4c1;
+  color: #4a3c1a;
+  border-bottom: 1px solid #d0bfa2;
+}
+
+body.light .tracker-table {
+  background-color: #f7eddc;
+}
+
+body.light .creature-row {
+  background-color: #f7eddc;
+}
+
+body.light .group-header {
+  background-color: #e9d9b0;
+  color: #4a3c1a;
+  border-top: 2px solid #d0bfa2;
+}
+
+body.light .tracker-table-header {
+  background-color: #f6e4c1;
+  color: #4a3c1a;
+  border-bottom: 1px solid #d0bfa2;
+}
+
+body.light .cell[contenteditable="true"],
+body.light .cell select {
+  background-color: #fffaf0;
+  color: #4a3c1a;
+  border: 1px dashed #d0bfa2;
+}
+
+body.light .status-tag {
+  background-color: #dfc9a4;
+  border: 1px solid #c3a982;
+  color: #4a3c1a;
+}
+
+body.light .drop-zone.highlight {
+  background-color: rgba(223, 201, 164, 0.4);
+  border: 1px dashed #c3a982;
+}
+
+body.light button,
+body.light .button-group button {
+  background-color: #7fb069;
+  color: white;
+}
+
+body.light button:hover {
+  background-color: #6ca05b;
+}
