@@ -570,10 +570,16 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
     const imageContent = c.imageUrl ? `<img src="${c.imageUrl}" alt="${c.name}" class="combatant-image">` : '🧍';
     const imageCell = `<div class="cell image-cell" data-field="imageUrl">${imageContent}</div>`;
 
-    // ADD the spell slot button logic here
-    const spellSlotButton = c.spellSlots ?
-        `<button onclick="toggleSpellSlots('${c.id}')" title="Toggle Spell Slots">🪄</button>` :
-        '';
+    // NEW: Conditional button logic
+    let spellButton = '';
+    if (c.spellSlots) {
+        // If they are a spellcaster, show the toggle panel button
+        spellButton = `<button onclick="toggleSpellSlots('${c.id}')" title="Toggle Spell Slots">🪄</button>`;
+    } else {
+        // If not, show the button to make them a spellcaster
+        spellButton = `<button onclick="makeSpellcaster('${c.id}')" title="Make Spellcaster">✨</button>`;
+    }
+
 
     row.innerHTML = `
         ${imageCell}
@@ -590,7 +596,7 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
         <div class="cell action-cell">
             <button onclick="duplicateCombatant('${c.id}')" title="Duplicate Combatant">+</button>
             ${groupRef ? `<button onclick="removeFromGroup('${c.id}', '${groupRef.id}')" title="Remove from Group">⬅</button>` : ''}
-            ${spellSlotButton} <!-- The new button is added here -->
+            ${spellButton} <!-- The new conditional button is added here -->
             <button onclick="deleteCombatant('${c.id}')" title="Delete Combatant">🗑</button>
         </div>
     `;
@@ -1251,6 +1257,10 @@ document.addEventListener('DOMContentLoaded', loadCombatants);
 
 // ADD these new functions to script.js
 
+// ==========================================================
+// REPLACE ALL PREVIOUS SPELL SLOT FUNCTIONS WITH THIS BLOCK
+// ==========================================================
+
 function toggleSpellSlots(id) {
     const combatant = findCombatantById(id);
     if (combatant && combatant.spellSlots) {
@@ -1259,23 +1269,48 @@ function toggleSpellSlots(id) {
     }
 }
 
-function adjustSpellSlot(id, level, amount) {
+function makeSpellcaster(id) {
     const combatant = findCombatantById(id);
-    if (!combatant || !combatant.spellSlots || !combatant.spellSlots[level]) return;
+    if (!combatant || combatant.spellSlots) return;
 
-    const slot = combatant.spellSlots[level];
-    const newCurrent = slot.current + amount;
+    combatant.spellSlots = {
+        1: { current: 0, max: 0 }, 2: { current: 0, max: 0 }, 3: { current: 0, max: 0 },
+        4: { current: 0, max: 0 }, 5: { current: 0, max: 0 }, 6: { current: 0, max: 0 },
+        7: { current: 0, max: 0 }, 8: { current: 0, max: 0 }, 9: { current: 0, max: 0 },
+    };
+    combatant.spellSlotsVisible = true;
 
-    // Clamp the value between 0 and max
-    slot.current = Math.max(0, Math.min(slot.max, newCurrent));
-
-    const action = amount < 0 ? 'used' : 'regained';
-    logChange(`${combatant.name} ${action} a level ${level} spell slot. (${slot.current}/${slot.max})`);
-    
+    logChange(`${combatant.name} is now a spellcaster.`);
     saveCombatants();
     renderCombatants();
 }
 
+/**
+ * NEW: Adjusts the MAXIMUM number of spell slots for a level.
+ * Called by the + and - buttons on the right.
+ */
+function adjustMaxSlots(id, level, amount) {
+    const combatant = findCombatantById(id);
+    if (!combatant || !combatant.spellSlots || !combatant.spellSlots[level]) return;
+    
+    const slot = combatant.spellSlots[level];
+    const newMax = Math.max(0, slot.max + amount); // Ensure max slots don't go below 0
+
+    if (slot.max !== newMax) {
+        const action = amount > 0 ? 'gained' : 'lost';
+        logChange(`${combatant.name} ${action} a max Lvl ${level} slot. New Max: ${newMax}`);
+        slot.max = newMax;
+        // Crucially, clamp the number of used slots so it's not higher than the new max
+        slot.current = Math.min(slot.current, slot.max);
+    }
+    
+    saveCombatants();
+    renderCombatants(); // Re-render to show changes (and potentially hide the row if max is 0)
+}
+
+/**
+ * REVISED: Updates the MAXIMUM slots from the input field.
+ */
 function updateMaxSlots(id, level, value) {
     const combatant = findCombatantById(id);
     if (!combatant || !combatant.spellSlots || !combatant.spellSlots[level]) return;
@@ -1284,61 +1319,101 @@ function updateMaxSlots(id, level, value) {
     if (isNaN(maxSlots) || maxSlots < 0) return;
 
     const slot = combatant.spellSlots[level];
-    slot.max = maxSlots;
-    // Ensure current slots don't exceed the new max
-    slot.current = Math.min(slot.current, slot.max);
-
-    logChange(`${combatant.name}'s max level ${level} spell slots set to ${slot.max}`);
-
+    if (slot.max !== maxSlots) {
+        logChange(`${combatant.name}'s max Lvl ${level} slots set to ${maxSlots}`);
+        slot.max = maxSlots;
+        slot.current = Math.min(slot.current, slot.max); // Clamp current used slots
+    }
+    
     saveCombatants();
-    // No need to render here, blur event will trigger it if needed, or rely on other actions.
+    renderCombatants(); // Re-render to apply changes and auto-hide row if max is 0
 }
 
+/**
+ * NEW: Updates the CURRENT (used) number of spell slots from its input field.
+ */
+function updateCurrentSlots(id, level, value) {
+    const combatant = findCombatantById(id);
+    if (!combatant || !combatant.spellSlots || !combatant.spellSlots[level]) return;
+
+    const slot = combatant.spellSlots[level];
+    let currentSlots = parseInt(value, 10);
+    if (isNaN(currentSlots)) return;
+
+    // Clamp the value: cannot be less than 0 or more than the max slots available.
+    currentSlots = Math.max(0, Math.min(currentSlots, slot.max));
+
+    if (slot.current !== currentSlots) {
+        logChange(`${combatant.name} used/regained Lvl ${level} slots. Used: ${currentSlots}/${slot.max}`);
+        slot.current = currentSlots;
+    }
+
+    saveCombatants();
+    renderCombatants(); // Re-render to update the checkboxes
+}
+
+
+/**
+ * REWRITTEN: Creates the spell slot panel with the new interaction model.
+ */
 function createSpellSlotPanel(c) {
     const panel = document.createElement('div');
     panel.className = 'spell-slot-panel';
     panel.dataset.combatantId = c.id;
 
-    let content = '';
+    let activeLevelsContent = '';
+    let inactiveLevels = [];
+
     for (const level in c.spellSlots) {
         const slotData = c.spellSlots[level];
-        // Only display spell levels where the character has at least one max slot
         if (slotData.max > 0) {
-            content += `
+            let checkboxesHTML = '';
+            for (let i = 1; i <= slotData.max; i++) {
+                const isChecked = i <= slotData.current ? 'checked' : '';
+                checkboxesHTML += `<input type="checkbox" disabled ${isChecked}>`;
+            }
+
+            activeLevelsContent += `
                 <div class="spell-level-row">
                     <div class="spell-level-label">Lvl ${level}</div>
-                    <div class="spell-slot-display">
-                        <input type="number" class="max-slot-input" value="${slotData.max}" 
+                    <div class="spell-slot-inputs">
+                        <input type="number" class="slot-input" value="${slotData.current}" 
+                               onblur="updateCurrentSlots('${c.id}', ${level}, this.value)" 
+                               min="0" max="${slotData.max}" title="Used Slots">
+                        <span class="slot-separator">/</span>
+                        <input type="number" class="slot-input" value="${slotData.max}" 
                                onblur="updateMaxSlots('${c.id}', ${level}, this.value)" 
                                min="0" title="Max Slots">
-                        <span>/</span>
-                        <span>${slotData.current} Used</span>
+                    </div>
+                    <div class="checkbox-container" title="${slotData.current} of ${slotData.max} slots used">
+                        ${checkboxesHTML}
                     </div>
                     <div class="spell-slot-controls">
-                        <button onclick="adjustSpellSlot('${c.id}', ${level}, 1)" title="Use Slot">+</button>
-                        <button onclick="adjustSpellSlot('${c.id}', ${level}, -1)" title="Regain Slot">-</button>
+                        <button onclick="adjustMaxSlots('${c.id}', ${level}, 1)" title="Add Max Slot">+</button>
+                        <button onclick="adjustMaxSlots('${c.id}', ${level}, -1)" title="Remove Max Slot">-</button>
                     </div>
                 </div>
             `;
+        } else {
+            inactiveLevels.push(level);
         }
     }
-    
-    // Add a row for setting max slots for levels that are currently 0
-    content += `<div class="spell-level-row add-slot-level-row">
-                    <div class="spell-level-label">Set Max Slots</div>
-                    ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(level => {
-                        const slotData = c.spellSlots[level];
-                        if (slotData.max === 0) {
-                            return `<div class="spell-slot-display">
-                                L${level}: <input type="number" class="max-slot-input" value="0" 
-                                       onblur="updateMaxSlots('${c.id}', ${level}, this.value); renderCombatants();" 
-                                       min="0">
-                            </div>`;
-                        }
-                        return '';
-                    }).join('')}
-                </div>`;
 
-    panel.innerHTML = content;
+    let setSlotsContent = '';
+    if (inactiveLevels.length > 0) {
+        setSlotsContent = `<div class="spell-level-row add-slot-level-row">
+            <div class="spell-level-label">Set Max Slots</div>
+            <div class="add-slot-inputs">
+                ${inactiveLevels.map(level => `
+                    <div class="add-slot-input-group">
+                        L${level}: <input type="number" class="slot-input" value="0" 
+                               onblur="updateMaxSlots('${c.id}', ${level}, this.value)" min="0">
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
+    }
+
+    panel.innerHTML = activeLevelsContent + setSlotsContent;
     return panel;
 }
