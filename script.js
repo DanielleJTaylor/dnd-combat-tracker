@@ -987,12 +987,27 @@ function updateTurnDisplay() {
         const currentRow = document.querySelector(`[data-combatant-id="${current.id}"]`);
         if (currentRow) {
             currentRow.classList.add('current-turn');
-            currentRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            // Auto-scrolling was removed from here.
         }
     } else {
         display.innerHTML = `🟢 Current Turn: <strong>None</strong>`;
     }
 }
+
+// NEW: Scrolls to the current combatant when the display is clicked.
+function scrollToCurrentTurn() {
+    const list = getFlatCombatantList();
+    if (list.length === 0) return;
+
+    const current = list[currentTurnIndex];
+    if (current) {
+        const currentRow = document.querySelector(`[data-combatant-id="${current.id}"]`);
+        if (currentRow) {
+            currentRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+}
+
 
 // ========== PART 6: Duplication, Delete, Export/Import, Log Panel ==========
 
@@ -1108,6 +1123,7 @@ function deleteCombatant(id) {
     console.warn(`Attempted to delete combatant with ID ${id} but could not find it.`);
 }
 
+// MODIFIED: Added a confirmation dialog before removing a combatant from a group.
 function removeFromGroup(id, groupId) {
     const group = combatants.find(c => c.id === groupId && c.isGroup);
     if (!group) {
@@ -1115,28 +1131,31 @@ function removeFromGroup(id, groupId) {
         return;
     }
 
-    let member = null;
-    group.members = group.members.filter(m => {
-        if (m.id === id) {
-            member = m;
-            return false; // Remove from group
-        }
-        return true;
-    });
+    const memberIndex = group.members.findIndex(m => m.id === id);
+    if (memberIndex === -1) {
+        console.warn(`Member with ID ${id} not found in group ${group.name}.`);
+        return;
+    }
+    
+    const member = group.members[memberIndex];
 
-    if (member) {
-        // Restore previousInit and add to top-level combatants
-        member.init = member.previousInit !== undefined ? member.previousInit : member.init;
-        combatants.push(member);
-        logChange(`${member.name} was removed from ${group.name}`);
+    // Add confirmation dialog.
+    if (!confirm(`Are you sure you want to remove "${member.name}" from the group "${group.name}"?`)) {
+        return; // User clicked Cancel.
+    }
+    
+    // Remove the member from the group.
+    group.members.splice(memberIndex, 1);
 
-        // If the group is now empty, consider removing it
-        if (group.members.length === 0 && confirm(`Group "${group.name}" is now empty. Do you want to remove it?`)) {
-            combatants = combatants.filter(c => c.id !== group.id);
-            logChange(`Group ${group.name} was removed because it became empty.`);
-        }
-    } else {
-        console.warn(`Member with ID ${id} not found in group ${groupId}.`);
+    // Restore previousInit and add to top-level combatants
+    member.init = member.previousInit !== undefined ? member.previousInit : member.init;
+    combatants.push(member);
+    logChange(`${member.name} was removed from ${group.name}`);
+
+    // If the group is now empty, consider removing it
+    if (group.members.length === 0 && confirm(`Group "${group.name}" is now empty. Do you want to remove it?`)) {
+        combatants = combatants.filter(c => c.id !== group.id);
+        logChange(`Group ${group.name} was removed because it became empty.`);
     }
 
     saveCombatants();

@@ -30,7 +30,8 @@
       <button id="toggleLogBtn">📜 History Log</button>
       <span id="roundCounter">Round: 1</span>
       <button onclick="prevTurn()">⬅ Previous Turn</button>
-      <div id="currentTurnDisplay">🟢 Current Turn: <strong>None</strong></div>
+      <!-- MODIFIED: Added onclick to scroll to the current turn's combatant -->
+      <div id="currentTurnDisplay" onclick="scrollToCurrentTurn()" title="Click to scroll to current turn">🟢 Current Turn: <strong>None</strong></div>
       <button onclick="nextTurn()">➡ Next Turn</button>
       <button onclick="saveEncounter()">💾 Save</button>
       <button onclick="triggerImport()">📂 Load</button>

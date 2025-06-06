@@ -102,6 +102,12 @@ header {
   background-color: #00d2b2;
 }
 
+/* ADDED: Makes the current turn display clickable */
+#currentTurnDisplay {
+  cursor: pointer;
+}
+
+
 .controls-row,
 .controls-right {
   display: flex;
