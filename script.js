@@ -119,9 +119,7 @@ showMoreBtn.addEventListener('click', () => {
     extraFields.classList.toggle('hidden');
 });
 
-// ... (your existing code) ...
 
-// REPLACE this function in script.js
 modalForm.addEventListener('submit', (e) => {
     e.preventDefault();
 
@@ -179,8 +177,6 @@ modalForm.addEventListener('submit', (e) => {
     modalForm.reset(); // Reset form after submission
 });
 
-// ... (rest of your existing code) ...
-
 window.addEventListener('click', (e) => {
     if (e.target === creatureModal) {
         creatureModal.classList.add('hidden');
@@ -205,12 +201,11 @@ function loadCombatants() {
     try {
         const state = JSON.parse(saved);
         combatants = state.combatants || [];
-        combatants.forEach(migrateCombatant); // <<< ADD THIS LINE
+        combatants.forEach(migrateCombatant);
         round = state.round || 1;
         currentTurnIndex = state.currentTurnIndex || 0;
         historyLog = state.historyLog || [];
 
-        // Apply theme state
         if (state.isDarkTheme) {
             document.body.classList.add('dark');
             document.getElementById('themeToggle').checked = true;
@@ -268,11 +263,11 @@ document.getElementById('addGroupBtn').addEventListener('click', () => {
 
     const newGroup = {
         id: generateUniqueId(),
-        name: getUniqueName(groupName), // Removed '(Group)' suffix from name generation for cleaner base name
+        name: getUniqueName(groupName),
         init: groupInit,
         isGroup: true,
         members: [],
-        previousInit: groupInit // Groups also store their initiative
+        previousInit: groupInit
     };
 
     combatants.push(newGroup);
@@ -281,10 +276,10 @@ document.getElementById('addGroupBtn').addEventListener('click', () => {
     renderCombatants();
 });
 
-// ========== PART 3: Rendering Combatants & Drop Zones ==========
+// ==================================================
+// ========== PART 3: COMBATANT RENDERING LOGIC (REFACTORED) ==========
+// ==================================================
 
-
-// REPLACE this function in script.js
 function renderCombatants() {
     const list = document.getElementById('combatantList');
     list.innerHTML = '';
@@ -296,29 +291,28 @@ function renderCombatants() {
         list.appendChild(createDropZone(item, null, index, 'before'));
 
         if (item.isGroup) {
-            const groupHeader = createGroupRow(item);
-            list.appendChild(groupHeader);
+            // Create the draggable header for the group
+            const groupHeaderWrapper = createGroupHeaderWrapper(item);
+            list.appendChild(groupHeaderWrapper);
+
+            // Create a drop zone for adding the first member to the group
             list.appendChild(createDropZone(item, item, 0, 'group-internal'));
 
             item.members.forEach((member, memberIndex) => {
-                const row = createCombatantRow(member, true, item);
-                list.appendChild(row);
-                // If the member's spell slot panel should be visible, render it
-                if (member.spellSlotsVisible) {
-                    list.appendChild(createSpellSlotPanel(member));
-                }
+                // Create a full wrapper for each member
+                const memberWrapper = createCombatantWrapper(member, true, item);
+                list.appendChild(memberWrapper);
+                // Create a drop zone after this member
                 list.appendChild(createDropZone(member, item, memberIndex + 1, 'group-internal'));
             });
         } else {
-            const row = createCombatantRow(item, false, null);
-            list.appendChild(row);
-            // If the combatant's spell slot panel should be visible, render it
-            if (item.spellSlotsVisible) {
-                list.appendChild(createSpellSlotPanel(item));
-            }
+            // Create a full wrapper for an individual combatant
+            const combatantWrapper = createCombatantWrapper(item, false, null);
+            list.appendChild(combatantWrapper);
         }
     });
 
+    // Add final drop zone at the end of the list
     if (sortedCombatants.length > 0) {
         list.appendChild(createDropZone(null, null, sortedCombatants.length, 'after'));
     } else {
@@ -329,103 +323,132 @@ function renderCombatants() {
     saveCombatants();
 }
 
+/**
+ * NEW: Creates the entire "box" for a single combatant.
+ * This wrapper is draggable and contains the info row and spell panel.
+ */
+function createCombatantWrapper(c, isGrouped = false, groupRef = null) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'combatant-wrapper';
+    if(isGrouped) {
+        wrapper.classList.add('group-member-wrapper');
+    }
+    wrapper.setAttribute("draggable", "true");
+    wrapper.dataset.combatantId = c.id;
 
+    // Attach drag-and-drop event listeners to the wrapper
+    wrapper.ondragstart = (e) => {
+        draggedCombatantId = c.id;
+        e.dataTransfer.setData("text/plain", c.id);
+        e.dataTransfer.effectAllowed = "move";
+        document.body.classList.add('dragging');
+    };
+    wrapper.ondragend = () => {
+        document.body.classList.remove('dragging');
+    };
 
-// ========== PASTE THE FULL REPLACEMENT FUNCTION HERE ==========
+    // Create the main info row and add it to the wrapper
+    const row = createCombatantRow(c, isGrouped, groupRef);
+    wrapper.appendChild(row);
 
-function createGroupRow(group) {
-  const row = document.createElement('div');
-  row.className = 'group-header creature-row';
-  row.setAttribute("draggable", "true");
-  row.dataset.combatantId = group.id;
+    // If the combatant is a spellcaster and the panel is visible, add it
+    if (c.spellSlotsVisible) {
+        const panel = createSpellSlotPanel(c);
+        wrapper.appendChild(panel);
+    }
 
-  row.ondragstart = (e) => {
-    draggedCombatantId = group.id;
-    e.dataTransfer.setData("text/plain", group.id);
-    e.dataTransfer.effectAllowed = "move";
-    document.body.classList.add('dragging');
-  };
-
-  row.ondragend = () => {
-    document.body.classList.remove('dragging');
-  };
-
-  row.innerHTML = `
-    <div class="cell image-cell">📁</div>
-    <div class="cell init-cell" contenteditable="true" data-field="init">${group.init}</div>
-    <div class="cell cell-name" contenteditable="true" data-field="name">${group.name}</div>
-    <div class="cell cell-ac"></div>
-    <div class="cell cell-hp"></div>
-    <div class="cell"></div>
-    <div class="cell"></div>
-    <div class="cell status-cell"></div>
-    <div class="cell role-cell">DM Group</div>
-    <div class="cell action-cell">
-      <button onclick="duplicateCombatant('${group.id}')" title="Duplicate Group">+</button>
-      <button onclick="deleteCombatant('${group.id}')" title="Delete Group">🗑</button>
-    </div>
-  `;
-
-  // --- CORRECTED EDITABLE LOGIC ---
-  row.querySelectorAll('[contenteditable="true"]').forEach(cell => {
-    cell.addEventListener('blur', (e) => {
-        const field = cell.dataset.field;
-        const oldValue = group[field]; // FIXED: Use 'group' instead of 'c'
-        const newValueRaw = cell.textContent.trim();
-        let newValue;
-
-        if (field === 'init') {
-            newValue = parseInt(newValueRaw, 10);
-            if (isNaN(newValue)) {
-                alert('Invalid input for initiative. Please enter a number.');
-                cell.textContent = oldValue; // Revert display
-                return;
-            }
-        } else { // For 'name' field
-            newValue = newValueRaw;
-        }
-
-        // Only update if the value actually changed
-        if (newValue !== oldValue) {
-            logChange(`Group ${group.name}'s ${field} changed from ${oldValue} to ${newValue}`);
-            group[field] = newValue;
-
-            // If the name was changed, we don't need to re-log. The value is just updated.
-            if (field === 'name') {
-              group.name = newValue;
-            }
-
-            saveCombatants();
-            renderCombatants(); // Re-render to reflect the change (especially sorting for init)
-        }
-    });
-
-    cell.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        e.target.blur();
-      }
-    });
-  });
-  // --- END OF CORRECTION ---
-
-  return row;
+    return wrapper;
 }
 
-// ========== END OF REPLACEMENT FUNCTION ==========
+
+/**
+ * REFACTORED: Creates the draggable header "box" for a group.
+ */
+function createGroupHeaderWrapper(group) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'combatant-wrapper group-header-wrapper';
+    wrapper.setAttribute("draggable", "true");
+    wrapper.dataset.combatantId = group.id;
+
+    wrapper.ondragstart = (e) => {
+        draggedCombatantId = group.id;
+        e.dataTransfer.setData("text/plain", group.id);
+        e.dataTransfer.effectAllowed = "move";
+        document.body.classList.add('dragging');
+    };
+    wrapper.ondragend = () => {
+        document.body.classList.remove('dragging');
+    };
+
+    const row = document.createElement('div');
+    row.className = 'group-header creature-row';
+    row.innerHTML = `
+        <div class="cell image-cell">📁</div>
+        <div class="cell init-cell" contenteditable="true" data-field="init">${group.init}</div>
+        <div class="cell cell-name" contenteditable="true" data-field="name">${group.name}</div>
+        <div class="cell cell-ac"></div>
+        <div class="cell cell-hp"></div>
+        <div class="cell"></div>
+        <div class="cell"></div>
+        <div class="cell status-cell"></div>
+        <div class="cell role-cell">DM Group</div>
+        <div class="cell action-cell">
+            <button onclick="duplicateCombatant('${group.id}')" title="Duplicate Group">+</button>
+            <button onclick="deleteCombatant('${group.id}')" title="Delete Group">🗑</button>
+        </div>
+    `;
+
+    // Attach event listeners for editable fields on the group header
+    row.querySelectorAll('[contenteditable="true"]').forEach(cell => {
+        cell.addEventListener('blur', (e) => {
+            const field = cell.dataset.field;
+            const oldValue = group[field];
+            const newValueRaw = cell.textContent.trim();
+            let newValue;
+
+            if (field === 'init') {
+                newValue = parseInt(newValueRaw, 10);
+                if (isNaN(newValue)) {
+                    alert('Invalid input for initiative. Please enter a number.');
+                    cell.textContent = oldValue;
+                    return;
+                }
+            } else {
+                newValue = newValueRaw;
+            }
+
+            if (newValue !== oldValue) {
+                logChange(`Group ${group.name}'s ${field} changed from ${oldValue} to ${newValue}`);
+                group[field] = newValue;
+                saveCombatants();
+                renderCombatants();
+            }
+        });
+
+        cell.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.target.blur();
+            }
+        });
+    });
+
+    wrapper.appendChild(row);
+    return wrapper;
+}
 
 
 function createDropZone(targetItem, targetGroup, targetIndex, type) {
     const drop = document.createElement('div');
     drop.className = 'drop-zone';
-    drop.dataset.targetId = targetItem?.id || ''; // The item being dropped *next to*
-    drop.dataset.targetGroup = targetGroup?.id || ''; // The group we are dropping into (if any)
-    drop.dataset.targetIndex = targetIndex; // Index within the group or main list
-    drop.dataset.dropType = type; // 'before', 'after', 'group-internal', 'empty-list'
+    drop.dataset.targetId = targetItem?.id || '';
+    drop.dataset.targetGroup = targetGroup?.id || '';
+    drop.dataset.targetIndex = targetIndex;
+    drop.dataset.dropType = type;
 
     drop.addEventListener('dragover', e => {
         e.preventDefault();
-        e.dataTransfer.dropEffect = "move"; // Indicate a move operation
+        e.dataTransfer.dropEffect = "move";
         document.body.classList.add('dragging');
         drop.classList.add('highlight');
     });
@@ -440,39 +463,25 @@ function createDropZone(targetItem, targetGroup, targetIndex, type) {
         drop.classList.remove('highlight');
 
         const draggedId = e.dataTransfer.getData("text/plain");
-        if (!draggedId || draggedId === drop.dataset.targetId) {
-            // Prevent dropping on self
-            return;
-        }
+        if (!draggedId || draggedId === drop.dataset.targetId) return;
 
         const dragged = removeCombatantById(draggedId);
-        if (!dragged) {
-            console.warn("Dragged combatant not found or already removed.");
-            return;
-        }
+        if (!dragged) return;
 
-        // Restore previousInit for individual combatants leaving a group
         if (!dragged.isGroup && dragged.previousInit !== undefined) {
              dragged.init = dragged.previousInit;
         }
 
-
         const targetGroupId = drop.dataset.targetGroup;
         const targetIdx = parseInt(drop.dataset.targetIndex, 10);
-        const dropType = drop.dataset.dropType;
 
-        if (targetGroupId) { // Dropping into a group
+        if (targetGroupId) {
             const targetGroup = combatants.find(c => c.id === targetGroupId && c.isGroup);
-            if (targetGroup) {
-                // Ensure combatant is not already a member of this group
-                if (!targetGroup.members.some(m => m.id === dragged.id)) {
-                    targetGroup.members.splice(targetIdx, 0, dragged);
-                    logChange(`${dragged.name} added to group ${targetGroup.name}`);
-                } else {
-                    logChange(`${dragged.name} is already in group ${targetGroup.name}`);
-                }
+            if (targetGroup && !targetGroup.members.some(m => m.id === dragged.id)) {
+                targetGroup.members.splice(targetIdx, 0, dragged);
+                logChange(`${dragged.name} added to group ${targetGroup.name}`);
             }
-        } else { // Dropping into the main combatants array
+        } else {
             combatants.splice(targetIdx, 0, dragged);
             logChange(`${dragged.name} moved to main list`);
         }
@@ -485,107 +494,64 @@ function createDropZone(targetItem, targetGroup, targetIndex, type) {
 
 function removeCombatantById(id) {
     let found = null;
-    let originalParentGroup = null;
-
-    // First, try to find and remove from top-level combatants array
-    const initialLength = combatants.length;
     combatants = combatants.filter(c => {
         if (c.id === id) {
             found = c;
-            return false; // Remove this combatant
+            return false;
         }
         return true;
     });
+    if (found) return found;
 
-    if (found) {
-        return found; // Found at top level, no need to check groups
-    }
-
-    // If not found at top level, iterate through groups to find and remove
     for (const group of combatants) {
         if (group.isGroup && group.members) {
-            const memberInitialLength = group.members.length;
             group.members = group.members.filter(m => {
                 if (m.id === id) {
                     found = m;
-                    originalParentGroup = group; // Store the group it was removed from
-                    return false; // Remove this member from the group
+                    return false;
                 }
                 return true;
             });
             if (found) {
-                // If the group is now empty, consider removing it (optional, but good for cleanup)
                 if (group.members.length === 0 && confirm(`Group "${group.name}" is now empty. Do you want to remove it?`)) {
                     combatants = combatants.filter(c => c.id !== group.id);
                     logChange(`Group ${group.name} was removed because it became empty.`);
                 }
-                break; // Found it, stop searching
+                break;
             }
         }
     }
     return found;
 }
 
-// ... (rest of your existing code) ...
-
-
 // ========== PART 4: Combatant Row, Status Effects & Actions ==========
 
-// REPLACE this function in script.js
+/**
+ * REFACTORED: This function now ONLY creates the info row, not the draggable wrapper.
+ */
 function createCombatantRow(c, isGrouped = false, groupRef = null) {
     const row = document.createElement('div');
     row.className = 'creature-row';
     if (isGrouped) row.classList.add('group-member');
-    row.setAttribute("draggable", "true");
-    row.dataset.combatantId = c.id;
 
-    if (c.role === 'dm') {
-        row.classList.add('dm-row');
-    } else {
-        row.classList.add('player-row');
-    }
+    if (c.role === 'dm') row.classList.add('dm-row');
+    else row.classList.add('player-row');
 
-    row.ondragstart = (e) => {
-        draggedCombatantId = c.id;
-        e.dataTransfer.setData("text/plain", c.id);
-        e.dataTransfer.effectAllowed = "move";
-        document.body.classList.add('dragging');
-    };
-
-    row.ondragend = () => {
-        document.body.classList.remove('dragging');
-    };
-
-    const statusTags = (c.statusEffects || []).map(se => {
-        return `<span class="status-tag">${se.name} (${se.rounds})</span>`;
-    }).join(' ');
-
-    const statusDropdown = `
-        <select onchange="applyStatusEffect('${c.id}', this)">
-            <option value="">＋ Add</option>
-            ${statusOptions.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
-        </select>
-    `;
-
+    const statusTags = (c.statusEffects || []).map(se => `<span class="status-tag">${se.name} (${se.rounds})</span>`).join(' ');
+    const statusDropdown = `<select onchange="applyStatusEffect('${c.id}', this)"><option value="">＋ Add</option>${statusOptions.map(opt => `<option value="${opt}">${opt}</option>`).join('')}</select>`;
     const imageContent = c.imageUrl ? `<img src="${c.imageUrl}" alt="${c.name}" class="combatant-image">` : '🧍';
     const imageCell = `<div class="cell image-cell" data-field="imageUrl">${imageContent}</div>`;
-
-    // NEW: Conditional button logic
+    
     let spellButton = '';
     if (c.spellSlots) {
-        // If they are a spellcaster, show the toggle panel button
         spellButton = `<button onclick="toggleSpellSlots('${c.id}')" title="Toggle Spell Slots">🪄</button>`;
     } else {
-        // If not, show the button to make them a spellcaster
         spellButton = `<button onclick="makeSpellcaster('${c.id}')" title="Make Spellcaster">✨</button>`;
     }
 
-
     row.innerHTML = `
         ${imageCell}
-        <div class="cell init-cell" ${isGrouped ? '' : 'contenteditable="true"'} data-field="init">
-            ${isGrouped ? '' : c.init}
-        </div>
+        <div class="cell init-cell" ${isGrouped ? '' : 'contenteditable="true"'} data-field="init">${isGrouped ? '' : c.init}</div>
         <div class="cell cell-name" contenteditable="true" data-field="name">${c.name}</div>
         <div class="cell cell-ac" contenteditable="true" data-field="ac">${c.ac}</div>
         <div class="cell" contenteditable="true" data-field="hp">${c.hp}</div>
@@ -596,7 +562,7 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
         <div class="cell action-cell">
             <button onclick="duplicateCombatant('${c.id}')" title="Duplicate Combatant">+</button>
             ${groupRef ? `<button onclick="removeFromGroup('${c.id}', '${groupRef.id}')" title="Remove from Group">⬅</button>` : ''}
-            ${spellButton} <!-- The new conditional button is added here -->
+            ${spellButton}
             <button onclick="deleteCombatant('${c.id}')" title="Delete Combatant">🗑</button>
         </div>
     `;
@@ -604,21 +570,8 @@ function createCombatantRow(c, isGrouped = false, groupRef = null) {
     attachEditableEvents(row, c);
     attachImageEditEvent(row, c);
 
-    const hpCell = row.querySelector('[data-field="hp"]');
-    if (hpCell) {
-        hpCell.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            showHpPopup(c.id, e, 'hp');
-        });
-    }
-
-    const tempHpCell = row.querySelector('[data-field="tempHp"]');
-    if (tempHpCell) {
-        tempHpCell.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            showHpPopup(c.id, e, 'tempHp');
-        });
-    }
+    row.querySelector('[data-field="hp"]')?.addEventListener('contextmenu', (e) => { e.preventDefault(); showHpPopup(c.id, e, 'hp'); });
+    row.querySelector('[data-field="tempHp"]')?.addEventListener('contextmenu', (e) => { e.preventDefault(); showHpPopup(c.id, e, 'tempHp'); });
 
     return row;
 }
@@ -631,91 +584,62 @@ function attachEditableEvents(row, c) {
             const field = cell.dataset.field;
             const oldValue = c[field];
             let newValueRaw = cell.textContent.trim();
-            let newValue; // Declare newValue here, will be assigned correctly below
+            let newValue;
 
-            // Determine if the field should be a number
             const isNumericField = ['init', 'ac', 'hp', 'tempHp', 'maxHp'].includes(field);
 
             if (isNumericField) {
                 newValue = parseInt(newValueRaw, 10);
                 if (isNaN(newValue)) {
                     alert(`Invalid input for ${field}. Please enter a number.`);
-                    cell.textContent = oldValue; // Revert to old value
-                    return; // Stop execution
+                    cell.textContent = oldValue;
+                    return;
                 }
             } else {
-                newValue = newValueRaw; // For 'name' or 'role', use the raw string
+                newValue = newValueRaw;
             }
 
-            // Perform the update only if the new value is different from the old value
-            // and apply specific logic for each field type
-            // ========== PASTE THE REPLACEMENT CODE HERE ==========
 
-            if (newValue !== oldValue) { // This comparison now correctly handles number vs number or string vs string
+            if (newValue !== oldValue) {
                 if (field === 'hp') {
-                    // NEW: Check if the entered value is higher than the maximum HP
                     if (newValue > c.maxHp) {
-                        const confirmSetToMax = confirm(
-                            `Invalid Input: The entered HP (${newValue}) is higher than the maximum (${c.maxHp}).\n\n` +
-                            `Would you like to set the HP to the maximum value (${c.maxHp}) instead?`
-                        );
-
-                        if (confirmSetToMax) {
-                            // User agreed, so we'll use maxHp as the new value.
+                        if (confirm(`HP (${newValue}) is higher than max (${c.maxHp}). Set to max?`)) {
                             newValue = c.maxHp;
                         } else {
-                            // User cancelled, so revert the change and stop processing.
-                            cell.textContent = oldValue; // Revert the cell display
-                            return; // Exit the event listener
+                            cell.textContent = oldValue;
+                            return;
                         }
-                    } else {
-                        // If the value is not over max, ensure it's not negative.
-                        newValue = Math.max(0, newValue);
                     }
-
-                    // Proceed with the update using the (potentially corrected) newValue
+                    newValue = Math.max(0, newValue);
                     logChange(`${c.name} HP changed: ${oldValue}/${c.maxHp} → ${newValue}/${c.maxHp}`);
                     c.hp = newValue;
 
                 } else if (field === 'tempHp') {
-                    // Temp HP cannot go below zero
                     newValue = Math.max(0, newValue);
                     logChange(`${c.name} Temp HP changed: ${oldValue} → ${newValue}`);
                     c.tempHp = newValue;
                 } else if (field === 'maxHp') {
-                    // Max HP cannot go below zero
                     newValue = Math.max(0, newValue);
                     logChange(`${c.name} Max HP changed: ${oldValue} → ${newValue}`);
                     c.maxHp = newValue;
-                    // If current HP is greater than new max HP, clamp it
                     if (c.hp > c.maxHp) {
                         c.hp = c.maxHp;
                         logChange(`${c.name} current HP clamped to new Max HP: ${c.hp}`);
                     }
-                } else if (field === 'init' || field === 'ac') {
-                    logChange(`${c.name}'s ${field} changed to ${newValue}`);
-                    c[field] = newValue;
-                } else if (field === 'name' || field === 'role') {
-                    // Special handling for 'name' due to getUniqueName
-                    if (field === 'name') {
-                        // If the name is changed, generate a unique one
+                } else {
+                     if (field === 'name') {
                         const newUniqueName = getUniqueName(newValue);
                         logChange(`${oldValue}'s name changed to ${newUniqueName}`);
-                        newValue = newUniqueName; // Update newValue to the unique one
+                        newValue = newUniqueName;
                     } else {
                         logChange(`${c.name}'s ${field} changed to ${newValue}`);
                     }
                     c[field] = newValue;
                 }
-                // Update the cell's content to reflect the potentially adjusted newValue
-                // This is now handled by renderCombatants(), but we leave it for the name change case
                 cell.textContent = newValue;
             }
-            // ========== END OF REPLACEMENT CODE ==========
 
             saveCombatants();
-            // Re-render only if there was a meaningful change, or if a number was clamped.
-            // This is often good practice to ensure UI consistency.
             if (newValue !== oldValue || isNumericField) {
                  renderCombatants();
             }
@@ -733,33 +657,25 @@ function attachEditableEvents(row, c) {
 
 function attachImageEditEvent(row, c) {
     const imageCell = row.querySelector('.image-cell');
-    if (imageCell) {
-        imageCell.addEventListener('dblclick', () => {
-            const newImageUrl = prompt(`Enter new image URL for ${c.name} (leave blank to remove image):`, c.imageUrl || '');
-            if (newImageUrl !== null) {
-                const trimmed = newImageUrl.trim();
-                if (trimmed !== c.imageUrl) {
-                    logChange(`${c.name}'s image ${trimmed ? `set to ${trimmed}` : 'removed'}`);
-                    c.imageUrl = trimmed;
-                    saveCombatants();
-                    renderCombatants();
-                }
+    imageCell?.addEventListener('dblclick', () => {
+        const newImageUrl = prompt(`Enter new image URL for ${c.name}:`, c.imageUrl || '');
+        if (newImageUrl !== null) {
+            const trimmed = newImageUrl.trim();
+            if (trimmed !== c.imageUrl) {
+                logChange(`${c.name}'s image ${trimmed ? `set to ${trimmed}` : 'removed'}`);
+                c.imageUrl = trimmed;
+                saveCombatants();
+                renderCombatants();
             }
-        });
-    }
+        }
+    });
 }
-
-
-
-
-// ... (rest of your existing code, no changes needed below this) ...
 
 
 function showHpPopup(combatantId, event, fieldType) {
     currentCombatantIdForHp = combatantId;
-    currentHpFieldToEdit = fieldType; // Keep this to know what was clicked
+    currentHpFieldToEdit = fieldType;
     const combatant = findCombatantById(combatantId);
-
     if (!combatant) return;
 
     const cellRect = event.target.getBoundingClientRect();
@@ -767,73 +683,50 @@ function showHpPopup(combatantId, event, fieldType) {
     hpPopup.style.top = `${cellRect.bottom + window.scrollY + 8}px`;
     hpPopup.classList.remove('hidden');
 
-    // Clear all inputs
     healingInput.value = '';
     damageInput.value = '';
     addTempHpInput.value = '';
 
-    // Focus on the most relevant input based on the click context
-    if (fieldType === 'hp') {
-        healingInput.focus(); // Default to healing when clicking main HP
-    } else if (fieldType === 'tempHp') {
-        addTempHpInput.focus(); // Default to adding Temp HP when clicking Temp HP
-    }
+    if (fieldType === 'hp') healingInput.focus();
+    else if (fieldType === 'tempHp') addTempHpInput.focus();
 }
-
-
-// ========== PASTE THE FULL REPLACEMENT FUNCTION HERE ==========
 
 function applyHpChange() {
     if (!currentCombatantIdForHp) return;
-
     const combatant = findCombatantById(currentCombatantIdForHp);
     if (!combatant) return;
 
-    // Get values from all three input fields, defaulting to 0 if empty
     const healingAmount = parseInt(healingInput.value, 10) || 0;
     const damageAmount = parseInt(damageInput.value, 10) || 0;
     const tempHpGain = parseInt(addTempHpInput.value, 10) || 0;
 
-    // Store old values for accurate logging
     const oldHp = combatant.hp;
     const oldTempHp = combatant.tempHp || 0;
 
-    // --- Process changes in a logical, unified order ---
-
-    // 1. Add new temporary HP first.
     if (tempHpGain > 0) {
         combatant.tempHp = oldTempHp + tempHpGain;
         logChange(`${combatant.name} gains ${tempHpGain} temporary HP. Total: ${combatant.tempHp}`);
     }
 
-    // 2. Apply healing to the main HP pool (cannot exceed max HP).
     if (healingAmount > 0) {
         const newHp = Math.min(combatant.maxHp, combatant.hp + healingAmount);
         if (newHp > oldHp) {
-            const healedFor = newHp - oldHp;
             combatant.hp = newHp;
-            logChange(`${combatant.name} is healed for ${healedFor}. HP: ${combatant.hp}/${combatant.maxHp}`);
+            logChange(`${combatant.name} is healed for ${newHp - oldHp}. HP: ${combatant.hp}/${combatant.maxHp}`);
         }
     }
 
-    // 3. Apply damage last. This logic is now ALWAYS used for damage.
     if (damageAmount > 0) {
         let remainingDamage = damageAmount;
         let currentTempHp = combatant.tempHp || 0;
-        
         logChange(`${combatant.name} takes ${damageAmount} damage.`);
 
-        // Damage hits temporary HP first.
         if (currentTempHp > 0) {
             const damageToTemp = Math.min(currentTempHp, remainingDamage);
             combatant.tempHp -= damageToTemp;
             remainingDamage -= damageToTemp;
-            if (damageToTemp > 0) {
-                 logChange(`  -${damageToTemp} absorbed by Temp HP (New Temp HP: ${combatant.tempHp})`);
-            }
+            if (damageToTemp > 0) logChange(`  -${damageToTemp} absorbed by Temp HP (New Temp HP: ${combatant.tempHp})`);
         }
-
-        // Any remaining damage hits the main HP pool.
         if (remainingDamage > 0) {
             const damageToHp = Math.min(combatant.hp, remainingDamage);
             if (damageToHp > 0) {
@@ -845,42 +738,29 @@ function applyHpChange() {
 
     saveCombatants();
     renderCombatants();
-    
-    // Hide and reset the popup
     hpPopup.classList.add('hidden');
     currentCombatantIdForHp = null;
     currentHpFieldToEdit = null;
 }
 
-// ========== END OF REPLACEMENT FUNCTION ==========
-
-
-
-// Close HP popup if clicking outside
 window.addEventListener('click', (e) => {
-    // Check if the clicked element is NOT the popup itself AND NOT one of its children
-    // AND if a combatant ID is currently associated with the popup (meaning it's open)
-    if (e.target !== hpPopup && !hpPopup.contains(e.target) && currentCombatantIdForHp) {
-        // Also ensure the click wasn't on the cell that opened the popup
-        const clickedCell = e.target.closest('.cell-hp, [data-field="tempHp"]');
-        if (!clickedCell || clickedCell.parentNode.dataset.combatantId !== currentCombatantIdForHp || (clickedCell.dataset.field !== currentHpFieldToEdit && clickedCell.dataset.field !== 'hp' && clickedCell.dataset.field !== 'tempHp')) {
-            hpPopup.classList.add('hidden');
-            currentCombatantIdForHp = null;
-            currentHpFieldToEdit = null;
-        }
+    if (!hpPopup.classList.contains('hidden') && !hpPopup.contains(e.target) && !e.target.closest('[data-field="hp"], [data-field="tempHp"]')) {
+        hpPopup.classList.add('hidden');
+        currentCombatantIdForHp = null;
+        currentHpFieldToEdit = null;
     }
-}, true); // Use capture phase to ensure this runs before other click handlers
+}, true);
 
 
 // ========== PART 5: Turn Logic & Status Effects ==========
 
 function applyStatusEffect(id, select) {
     const effect = select.value;
-    select.value = ""; // Reset dropdown
+    select.value = "";
     if (!effect) return;
 
     const roundsStr = prompt(`How many rounds for ${effect}?`);
-    if (roundsStr === null) return; // User cancelled prompt
+    if (roundsStr === null) return;
     const rounds = parseInt(roundsStr, 10);
 
     if (isNaN(rounds) || rounds <= 0) {
@@ -889,13 +769,9 @@ function applyStatusEffect(id, select) {
     }
 
     const target = findCombatantById(id);
-    if (!target) {
-        console.error("Combatant not found for status effect:", id);
-        return;
-    }
+    if (!target) return;
     if (!target.statusEffects) target.statusEffects = [];
 
-    // Check if effect already exists and update rounds if so
     const existingEffect = target.statusEffects.find(se => se.name === effect);
     if (existingEffect) {
         existingEffect.rounds += rounds;
@@ -911,19 +787,13 @@ function applyStatusEffect(id, select) {
 
 function tickStatusEffects() {
     combatants.forEach(c => {
-        // Iterate over members if it's a group, otherwise just the combatant itself
         const membersToTick = c.isGroup ? c.members : [c];
         membersToTick.forEach(m => {
-            if (!m.statusEffects || m.statusEffects.length === 0) return;
-
+            if (!m.statusEffects?.length) return;
             const oldLength = m.statusEffects.length;
-            m.statusEffects = m.statusEffects
-                .map(se => ({ ...se, rounds: se.rounds - 1 }))
-                .filter(se => se.rounds > 0);
-
-            const removedCount = oldLength - m.statusEffects.length;
-            if (removedCount > 0) {
-                logChange(`${m.name} had ${removedCount} status effect(s) expire.`);
+            m.statusEffects = m.statusEffects.map(se => ({ ...se, rounds: se.rounds - 1 })).filter(se => se.rounds > 0);
+            if (oldLength - m.statusEffects.length > 0) {
+                logChange(`${m.name} had status effect(s) expire.`);
             }
         });
     });
@@ -931,44 +801,35 @@ function tickStatusEffects() {
 
 function nextTurn() {
     const list = getFlatCombatantList();
-    if (list.length === 0) {
-        logChange('No combatants to advance turn.');
-        return;
-    }
+    if (list.length === 0) return;
 
-    // If this is the start of a new round (after last combatant's turn), tick effects
     if (currentTurnIndex === list.length - 1) {
         round++;
         document.getElementById('roundCounter').textContent = `Round: ${round}`;
         logChange(`⏩ Round ${round} begins`);
-        tickStatusEffects(); // Tick effects at the start of the new round
+        tickStatusEffects();
     }
     
     currentTurnIndex = (currentTurnIndex + 1) % list.length;
     
     updateTurnDisplay();
-    renderCombatants(); // Re-render to highlight current turn and update status tags
+    renderCombatants();
 }
 
 function prevTurn() {
     const list = getFlatCombatantList();
-    if (list.length === 0) {
-        logChange('No combatants to revert turn.');
-        return;
-    }
+    if (list.length === 0) return;
 
     if (currentTurnIndex === 0 && round > 1) {
-        // If reverting from the first combatant, go back a round
         round = Math.max(1, round - 1);
         document.getElementById('roundCounter').textContent = `Round: ${round}`;
         logChange(`⏪ Reverted to Round ${round}`);
-        // Optional: logic to "un-tick" status effects if truly rewinding state
     }
     
     currentTurnIndex = (currentTurnIndex - 1 + list.length) % list.length;
 
     updateTurnDisplay();
-    renderCombatants(); // Re-render to highlight current turn
+    renderCombatants();
 }
 
 function updateTurnDisplay() {
@@ -976,62 +837,57 @@ function updateTurnDisplay() {
     const current = list[currentTurnIndex];
     const display = document.getElementById('currentTurnDisplay');
 
-    // Remove previous highlight
-    document.querySelectorAll('.creature-row.current-turn').forEach(row => {
-        row.classList.remove('current-turn');
+    // MODIFIED: Target the wrapper for highlighting
+    document.querySelectorAll('.combatant-wrapper.current-turn').forEach(wrapper => {
+        wrapper.classList.remove('current-turn');
     });
 
     if (current) {
         display.innerHTML = `🟢 Current Turn: <strong>${current.name}</strong>`;
-        // Highlight the current combatant's row
-        const currentRow = document.querySelector(`[data-combatant-id="${current.id}"]`);
-        if (currentRow) {
-            currentRow.classList.add('current-turn');
-            // Auto-scrolling was removed from here.
+        // MODIFIED: Find the wrapper and add the class
+        const currentWrapper = document.querySelector(`.combatant-wrapper[data-combatant-id="${current.id}"]`);
+        if (currentWrapper) {
+            currentWrapper.classList.add('current-turn');
         }
     } else {
         display.innerHTML = `🟢 Current Turn: <strong>None</strong>`;
     }
 }
 
-// NEW: Scrolls to the current combatant when the display is clicked.
 function scrollToCurrentTurn() {
     const list = getFlatCombatantList();
     if (list.length === 0) return;
-
     const current = list[currentTurnIndex];
     if (current) {
-        const currentRow = document.querySelector(`[data-combatant-id="${current.id}"]`);
-        if (currentRow) {
-            currentRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        // MODIFIED: Find the wrapper to scroll to
+        const currentWrapper = document.querySelector(`.combatant-wrapper[data-combatant-id="${current.id}"]`);
+        if (currentWrapper) {
+            currentWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }
 }
 
 
-// ========== PART 6: Duplication, Delete, Export/Import, Log Panel ==========
-
-// REPLACE your old duplicateCombatant function with this one in script.js
+// ========== PART 6: Other Actions ==========
 
 function duplicateCombatant(id) {
     const original = findCombatantById(id);
     if (!original) return;
 
-    const clone = JSON.parse(JSON.stringify(original)); // Deep clone handles spellSlots
+    const clone = JSON.parse(JSON.stringify(original));
     clone.id = generateUniqueId();
     clone.name = getUniqueName(original.name);
     clone.statusEffects = [...(original.statusEffects || [])];
     clone.previousInit = original.init;
-    clone.spellSlotsVisible = false; // Ensure panel is closed on new clone
+    clone.spellSlotsVisible = false;
     clone.members = original.isGroup ? original.members.map(member => ({
-        ...JSON.parse(JSON.stringify(member)), // Deep clone members too
+        ...JSON.parse(JSON.stringify(member)),
         id: generateUniqueId(),
         name: getUniqueName(member.name),
         previousInit: member.init,
         spellSlotsVisible: false
     })) : [];
 
-    // ... rest of the function is the same
     let addedToGroup = false;
     for (const group of combatants) {
         if (group.isGroup && group.members.some(m => m.id === id)) {
@@ -1041,165 +897,65 @@ function duplicateCombatant(id) {
         }
     }
 
-    if (!addedToGroup) {
-        combatants.push(clone);
-    }
-
+    if (!addedToGroup) combatants.push(clone);
     logChange(`Duplicated ${original.name} → ${clone.name}`);
-    saveCombatants();
     renderCombatants();
 }
 
-
-
-// ADD this new helper function anywhere in script.js
-
 function migrateCombatant(c) {
-    // If a combatant has spell slots but no visibility flag, add it.
     if (c.spellSlots && typeof c.spellSlotsVisible === 'undefined') {
         c.spellSlotsVisible = false;
     }
-    // Do the same for members of a group
     if (c.isGroup && c.members) {
         c.members.forEach(migrateCombatant);
     }
 }
 
-
-
-
 function deleteCombatant(id) {
-    let name = '';
-    let foundAndRemoved = false;
-
-    // Helper to log and set found flag
-    const logAndSetRemoved = (item) => {
-        name = item.name;
-        foundAndRemoved = true;
-        logChange(`${name} was removed from the tracker`);
-    };
-
-    // Try deleting from top level
-    const initialCombatantsLength = combatants.length;
-    combatants = combatants.filter(c => {
-        if (c.id === id) {
-            logAndSetRemoved(c);
-            return false;
-        }
-        return true;
-    });
-
-    if (foundAndRemoved) {
-        saveCombatants();
+    const combatant = findCombatantById(id);
+    if (combatant && confirm(`Are you sure you want to delete ${combatant.name}?`)) {
+        removeCombatantById(id);
+        logChange(`${combatant.name} was deleted.`);
         renderCombatants();
-        return;
     }
-
-    // Try deleting from inside a group
-    for (const group of combatants) {
-        if (group.isGroup) {
-            const initialMembersLength = group.members.length;
-            group.members = group.members.filter(m => {
-                if (m.id === id) {
-                    logAndSetRemoved(m);
-                    return false;
-                }
-                return true;
-            });
-
-            if (foundAndRemoved) {
-                // If group becomes empty, offer to delete it
-                if (group.members.length === 0 && confirm(`Group "${group.name}" is now empty. Do you want to remove it?`)) {
-                    combatants = combatants.filter(c => c.id !== group.id);
-                    logChange(`Group ${group.name} was removed because it became empty.`);
-                }
-                saveCombatants();
-                renderCombatants();
-                return;
-            }
-        }
-    }
-
-    console.warn(`Attempted to delete combatant with ID ${id} but could not find it.`);
 }
 
-// MODIFIED: Added a confirmation dialog before removing a combatant from a group.
 function removeFromGroup(id, groupId) {
     const group = combatants.find(c => c.id === groupId && c.isGroup);
-    if (!group) {
-        console.error("Group not found for removeFromGroup:", groupId);
-        return;
-    }
-
+    if (!group) return;
     const memberIndex = group.members.findIndex(m => m.id === id);
-    if (memberIndex === -1) {
-        console.warn(`Member with ID ${id} not found in group ${group.name}.`);
-        return;
-    }
+    if (memberIndex === -1) return;
     
     const member = group.members[memberIndex];
-
-    // Add confirmation dialog.
-    if (!confirm(`Are you sure you want to remove "${member.name}" from the group "${group.name}"?`)) {
-        return; // User clicked Cancel.
-    }
+    if (!confirm(`Are you sure you want to remove "${member.name}" from the group "${group.name}"?`)) return;
     
-    // Remove the member from the group.
     group.members.splice(memberIndex, 1);
-
-    // Restore previousInit and add to top-level combatants
-    member.init = member.previousInit !== undefined ? member.previousInit : member.init;
+    member.init = member.previousInit ?? member.init;
     combatants.push(member);
     logChange(`${member.name} was removed from ${group.name}`);
 
-    // If the group is now empty, consider removing it
-    if (group.members.length === 0 && confirm(`Group "${group.name}" is now empty. Do you want to remove it?`)) {
+    if (group.members.length === 0 && confirm(`Group "${group.name}" is now empty. Remove it?`)) {
         combatants = combatants.filter(c => c.id !== group.id);
-        logChange(`Group ${group.name} was removed because it became empty.`);
+        logChange(`Group ${group.name} was removed.`);
     }
-
-    saveCombatants();
     renderCombatants();
 }
 
-function triggerImport() {
-    document.getElementById('importInput').click();
-}
-
+function triggerImport() { document.getElementById('importInput').click(); }
 
 document.getElementById('importInput').addEventListener('change', function (e) {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = function (event) {
         try {
-            // FIX: Parse the JSON string from the file content
             const state = JSON.parse(event.target.result);
-
             combatants = state.combatants || [];
-            combatants.forEach(migrateCombatant); // <<< ADD THIS LINE
+            combatants.forEach(migrateCombatant);
             round = state.round || 1;
             currentTurnIndex = state.currentTurnIndex || 0;
             historyLog = state.historyLog || [];
 
-            // ✅ Ensure tempHp and maxHp exist on all combatants (this block is good for migration)
-            function ensureHpFieldsExist(combatant) {
-            if (combatant.isGroup && combatant.members) {
-                combatant.members.forEach(member => {
-                if (typeof member.tempHp !== 'number') member.tempHp = 0;
-                if (typeof member.maxHp !== 'number') member.maxHp = member.hp || 1;
-                });
-            } else {
-                if (typeof combatant.tempHp !== 'number') combatant.tempHp = 0;
-                if (typeof combatant.maxHp !== 'number') combatant.maxHp = combatant.hp || 1;
-            }
-            }
-
-            combatants.forEach(ensureHpFieldsExist);
-
-
-            // Apply theme state from loaded data
             if (state.isDarkTheme) {
                 document.body.classList.add('dark');
                 document.getElementById('themeToggle').checked = true;
@@ -1208,81 +964,44 @@ document.getElementById('importInput').addEventListener('change', function (e) {
                 document.body.classList.add('light');
                 document.getElementById('themeToggle').checked = false;
             }
-
-            // Update UI based on loaded state
-            document.getElementById('roundCounter').textContent = `Round: ${round}`; // Added this line
+            document.getElementById('roundCounter').textContent = `Round: ${round}`;
             renderCombatants();
             updateTurnDisplay();
-            logChange("📂 Encounter loaded from file."); // This log will now correctly appear in the *newly loaded* historyLog
-
+            logChange("📂 Encounter loaded from file.");
         } catch (err) {
-            console.error('Error importing encounter:', err);
-            alert('Failed to import encounter. The file might be corrupted or in an incorrect format.');
+            alert('Failed to import encounter file.');
         } finally {
-            e.target.value = ''; // Clear the file input
+            e.target.value = '';
         }
     };
     reader.readAsText(file);
 });
 
-
-
-function exportToPDF() {
-    alert('🖨 PDF export not implemented yet.\nUse browser Print (Ctrl+P) as a workaround.');
-    // To implement real PDF export, you'd typically use a library like jsPDF or html2canvas
-    // Example:
-    // const element = document.getElementById('combatTable');
-    // html2canvas(element).then(canvas => {
-    //     const imgData = canvas.toDataURL('image/png');
-    //     const pdf = new jspdf.jsPDF();
-    //     pdf.addImage(imgData, 'PNG', 0, 0);
-    //     pdf.save("combat-tracker.pdf");
-    // });
-}
-
 function saveEncounter() {
-    const data = {
-        combatants,
-        round,
-        currentTurnIndex,
-        historyLog,
-        isDarkTheme: document.body.classList.contains('dark')
-    };
+    const data = { combatants, round, currentTurnIndex, historyLog, isDarkTheme: document.body.classList.contains('dark') };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = "dnd-combat-tracker-encounter.json"; // More descriptive filename
-    document.body.appendChild(a);
+    a.href = URL.createObjectURL(blob);
+    a.download = "dnd-combat-tracker-encounter.json";
     a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url); // Clean up the URL object
+    URL.revokeObjectURL(a.href);
     logChange("💾 Encounter saved to file.");
 }
 
 document.getElementById('toggleLogBtn').addEventListener('click', () => {
-    const container = document.getElementById('trackerContainer');
-    container.classList.toggle('show-log');
-
-    const logContent = document.getElementById('historyLogContent');
-    logContent.innerHTML = historyLog.map(entry => `<div>${entry}</div>`).join('');
-    logContent.scrollTop = logContent.scrollHeight;
+    document.getElementById('trackerContainer').classList.toggle('show-log');
+    updateLogPanel();
 });
 
-// Initial load when script starts
 document.addEventListener('DOMContentLoaded', loadCombatants);
 
-
-
-// ADD these new functions to script.js
-
-// ==========================================================
-// REPLACE ALL PREVIOUS SPELL SLOT FUNCTIONS WITH THIS BLOCK
-// ==========================================================
+// ============================================
+// ========== SPELL SLOT FUNCTIONS ==========
+// ============================================
 
 function toggleSpellSlots(id) {
     const combatant = findCombatantById(id);
-    if (combatant && combatant.spellSlots) {
+    if (combatant?.spellSlots) {
         combatant.spellSlotsVisible = !combatant.spellSlotsVisible;
         renderCombatants();
     }
@@ -1291,148 +1010,80 @@ function toggleSpellSlots(id) {
 function makeSpellcaster(id) {
     const combatant = findCombatantById(id);
     if (!combatant || combatant.spellSlots) return;
-
-    combatant.spellSlots = {
-        1: { current: 0, max: 0 }, 2: { current: 0, max: 0 }, 3: { current: 0, max: 0 },
-        4: { current: 0, max: 0 }, 5: { current: 0, max: 0 }, 6: { current: 0, max: 0 },
-        7: { current: 0, max: 0 }, 8: { current: 0, max: 0 }, 9: { current: 0, max: 0 },
-    };
+    combatant.spellSlots = { 1: { c: 0, m: 0 }, 2: { c: 0, m: 0 }, 3: { c: 0, m: 0 }, 4: { c: 0, m: 0 }, 5: { c: 0, m: 0 }, 6: { c: 0, m: 0 }, 7: { c: 0, m: 0 }, 8: { c: 0, m: 0 }, 9: { c: 0, m: 0 } };
     combatant.spellSlotsVisible = true;
-
     logChange(`${combatant.name} is now a spellcaster.`);
-    saveCombatants();
     renderCombatants();
 }
 
-/**
- * NEW: Adjusts the MAXIMUM number of spell slots for a level.
- * Called by the + and - buttons on the right.
- */
 function adjustMaxSlots(id, level, amount) {
-    const combatant = findCombatantById(id);
-    if (!combatant || !combatant.spellSlots || !combatant.spellSlots[level]) return;
-    
-    const slot = combatant.spellSlots[level];
-    const newMax = Math.max(0, slot.max + amount); // Ensure max slots don't go below 0
-
-    if (slot.max !== newMax) {
-        const action = amount > 0 ? 'gained' : 'lost';
-        logChange(`${combatant.name} ${action} a max Lvl ${level} slot. New Max: ${newMax}`);
-        slot.max = newMax;
-        // Crucially, clamp the number of used slots so it's not higher than the new max
-        slot.current = Math.min(slot.current, slot.max);
-    }
-    
-    saveCombatants();
-    renderCombatants(); // Re-render to show changes (and potentially hide the row if max is 0)
+    const c = findCombatantById(id)?.spellSlots?.[level];
+    if (!c) return;
+    c.m = Math.max(0, c.m + amount);
+    c.c = Math.min(c.c, c.m);
+    renderCombatants();
 }
 
-/**
- * REVISED: Updates the MAXIMUM slots from the input field.
- */
 function updateMaxSlots(id, level, value) {
-    const combatant = findCombatantById(id);
-    if (!combatant || !combatant.spellSlots || !combatant.spellSlots[level]) return;
-
-    const maxSlots = parseInt(value, 10);
-    if (isNaN(maxSlots) || maxSlots < 0) return;
-
-    const slot = combatant.spellSlots[level];
-    if (slot.max !== maxSlots) {
-        logChange(`${combatant.name}'s max Lvl ${level} slots set to ${maxSlots}`);
-        slot.max = maxSlots;
-        slot.current = Math.min(slot.current, slot.max); // Clamp current used slots
+    const c = findCombatantById(id)?.spellSlots?.[level];
+    if (!c) return;
+    const max = parseInt(value, 10);
+    if (!isNaN(max) && max >= 0) {
+        c.m = max;
+        c.c = Math.min(c.c, c.m);
+        renderCombatants();
     }
-    
-    saveCombatants();
-    renderCombatants(); // Re-render to apply changes and auto-hide row if max is 0
 }
 
-/**
- * NEW: Updates the CURRENT (used) number of spell slots from its input field.
- */
 function updateCurrentSlots(id, level, value) {
-    const combatant = findCombatantById(id);
-    if (!combatant || !combatant.spellSlots || !combatant.spellSlots[level]) return;
-
-    const slot = combatant.spellSlots[level];
-    let currentSlots = parseInt(value, 10);
-    if (isNaN(currentSlots)) return;
-
-    // Clamp the value: cannot be less than 0 or more than the max slots available.
-    currentSlots = Math.max(0, Math.min(currentSlots, slot.max));
-
-    if (slot.current !== currentSlots) {
-        logChange(`${combatant.name} used/regained Lvl ${level} slots. Used: ${currentSlots}/${slot.max}`);
-        slot.current = currentSlots;
+    const c = findCombatantById(id)?.spellSlots?.[level];
+    if (!c) return;
+    const current = parseInt(value, 10);
+    if (!isNaN(current)) {
+        c.c = Math.max(0, Math.min(current, c.m));
+        renderCombatants();
     }
-
-    saveCombatants();
-    renderCombatants(); // Re-render to update the checkboxes
 }
 
-
-/**
- * REWRITTEN: Creates the spell slot panel with the new interaction model.
- */
 function createSpellSlotPanel(c) {
     const panel = document.createElement('div');
     panel.className = 'spell-slot-panel';
     panel.dataset.combatantId = c.id;
 
-    let activeLevelsContent = '';
-    let inactiveLevels = [];
-
+    let activeLevelsHTML = '';
+    const inactiveLevels = [];
     for (const level in c.spellSlots) {
-        const slotData = c.spellSlots[level];
-        if (slotData.max > 0) {
-            let checkboxesHTML = '';
-            for (let i = 1; i <= slotData.max; i++) {
-                const isChecked = i <= slotData.current ? 'checked' : '';
-                checkboxesHTML += `<input type="checkbox" disabled ${isChecked}>`;
-            }
-
-            activeLevelsContent += `
+        const slot = c.spellSlots[level];
+        if (slot.m > 0) {
+            let checkboxesHTML = Array.from({ length: slot.m }, (_, i) => `<input type="checkbox" disabled ${i < slot.c ? 'checked' : ''}>`).join('');
+            activeLevelsHTML += `
                 <div class="spell-level-row">
                     <div class="spell-level-label">Lvl ${level}</div>
                     <div class="spell-slot-inputs">
-                        <input type="number" class="slot-input" value="${slotData.current}" 
-                               onblur="updateCurrentSlots('${c.id}', ${level}, this.value)" 
-                               min="0" max="${slotData.max}" title="Used Slots">
+                        <input type="number" class="slot-input" value="${slot.c}" onblur="updateCurrentSlots('${c.id}', ${level}, this.value)" min="0" max="${slot.m}" title="Used Slots">
                         <span class="slot-separator">/</span>
-                        <input type="number" class="slot-input" value="${slotData.max}" 
-                               onblur="updateMaxSlots('${c.id}', ${level}, this.value)" 
-                               min="0" title="Max Slots">
+                        <input type="number" class="slot-input" value="${slot.m}" onblur="updateMaxSlots('${c.id}', ${level}, this.value)" min="0" title="Max Slots">
                     </div>
-                    <div class="checkbox-container" title="${slotData.current} of ${slotData.max} slots used">
-                        ${checkboxesHTML}
-                    </div>
+                    <div class="checkbox-container" title="${slot.c} of ${slot.m} slots used">${checkboxesHTML}</div>
                     <div class="spell-slot-controls">
                         <button onclick="adjustMaxSlots('${c.id}', ${level}, 1)" title="Add Max Slot">+</button>
                         <button onclick="adjustMaxSlots('${c.id}', ${level}, -1)" title="Remove Max Slot">-</button>
                     </div>
-                </div>
-            `;
+                </div>`;
         } else {
             inactiveLevels.push(level);
         }
     }
 
-    let setSlotsContent = '';
+    let inactiveLevelsHTML = '';
     if (inactiveLevels.length > 0) {
-        setSlotsContent = `<div class="spell-level-row add-slot-level-row">
-            <div class="spell-level-label">Set Max Slots</div>
-            <div class="add-slot-inputs">
-                ${inactiveLevels.map(level => `
-                    <div class="add-slot-input-group">
-                        L${level}: <input type="number" class="slot-input" value="0" 
-                               onblur="updateMaxSlots('${c.id}', ${level}, this.value)" min="0">
-                    </div>
-                `).join('')}
-            </div>
-        </div>`;
+        const inputs = inactiveLevels.map(level => `
+            <div class="add-slot-input-group">
+                L${level}: <input type="number" class="slot-input" value="0" onblur="updateMaxSlots('${c.id}', ${level}, this.value)" min="0">
+            </div>`).join('');
+        inactiveLevelsHTML = `<div class="spell-level-row add-slot-level-row"><div class="spell-level-label">Set Max Slots</div><div class="add-slot-inputs">${inputs}</div></div>`;
     }
 
-    panel.innerHTML = activeLevelsContent + setSlotsContent;
+    panel.innerHTML = activeLevelsHTML + inactiveLevelsHTML;
     return panel;
 }
