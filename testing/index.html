@@ -57,27 +57,50 @@
         </div>
       </header>
 
-      <main class="tracker-wrapper">
-        <div class="controls-row">
-          <button id="seeDashboardsBtn">📋 See Dashboards</button>
-          <button id="toggleLogBtn">📜 History Log</button>
-          <span id="roundCounter">Round: 1</span>
-          <button onclick="prevTurn()">⬅ Previous Turn</button>
-          <div id="currentTurnDisplay" onclick="scrollToCurrentTurn()" title="Click to scroll to current turn">🟢 Current Turn: <strong>None</strong></div>
-          <button onclick="nextTurn()">➡ Next Turn</button>
-          <button onclick="saveEncounter()">💾 Save</button>
-          <button onclick="triggerImport()">📂 Load</button>
-          <button onclick="clearData()">🗑️ Clear</button> 
-          <input type="file" id="importInput" accept=".json" hidden />
-        </div>
+      <!-- ... inside <section id="tracker-section"> ... </header> is here -->
 
-        <div id="combatTable" class="tracker-table">
-          <div class="tracker-table-header">
-            <div class="cell image-cell">[img]</div><div class="cell">[init]</div><div class="cell">[name]</div><div class="cell">[ac]</div><div class="cell">[hp]</div><div class="cell">[tempHp]</div><div class="cell">[maxHp]</div><div class="cell">[status tags]</div><div class="cell">[role]</div><div class="cell">[buttons/actions]</div>
+      <main class="tracker-wrapper">
+          <!-- The controls row is NOW OUTSIDE the main scrollable area -->
+          <div class="controls-row">
+            <button id="seeDashboardsBtn">📋 See Dashboards</button>
+            <button id="toggleLogBtn">📜 History Log</button>
+            <span id="roundCounter">Round: 1</span>
+            <button onclick="prevTurn()">⬅ Previous Turn</button>
+            <div id="currentTurnDisplay" onclick="scrollToCurrentTurn()" title="Click to scroll to current turn">🟢 Current Turn: <strong>None</strong></div>
+            <button onclick="nextTurn()">➡ Next Turn</button>
+            <button onclick="saveEncounter()">💾 Save</button>
+            <button onclick="triggerImport()">📂 Load</button>
+            <!-- ... all your other buttons ... -->
+            <button onclick="clearData()">🗑️ Clear</button> 
+            <input type="file" id="importInput" accept=".json" hidden />
+            
+            <!-- ADD THIS LINE for image uploads -->
+            <input type="file" id="imageUploadInput" accept="image/*" hidden />
           </div>
-          <div id="combatantList"></div>
-        </div>
-      </main>
+          <!-- ... rest of main ... -->
+
+          <!-- NEW WRAPPER for the table content that will scroll -->
+          <div class="table-scroll-container">
+              <div id="combatTable" class="tracker-table">
+                <div class="tracker-table-header">
+                    <div class="cell image-cell">[img]</div>
+                    <div class="cell">[init]</div>
+                    <div class="cell">[name]</div>
+                    <div class="cell">[ac]</div>
+                    <!-- Change this from [hp] -->
+                    <div class="cell">[hp/max]</div>
+                    <div class="cell">[tempHp]</div>
+                    <!-- REMOVE the separate [maxHp] header -->
+                    <div class="cell">[status tags]</div>
+                    <div class="cell">[role]</div>
+                    <div class="cell">[buttons/actions]</div>
+                  </div>
+                <div id="combatantList"></div>
+              </div>
+          </div>
+        </main>
+
+      <!-- ... </section> and rest of body ... -->
     </section>
   </div>
 
@@ -112,15 +135,21 @@
     <div id="historyLogContent" class="log-content"></div> 
   </section>
   
-  <div id="hpPopup" class="modal hidden">
-    <div class="modal-content">
+  <!-- ... inside the <body> ... -->
+  
+  <!-- HP ADJUSTMENT POPUP -->
+  <!-- CHANGE THE CLASS on the line below -->
+  <div id="hpPopup" class="popup hidden"> 
+    <div class="popup-content"> <!-- Also good practice to change this class -->
         <h3>Adjust HP</h3> 
         <div class="hp-popup-field"><label for="healingInput">Healing:</label><input type="number" id="healingInput" min="0" placeholder="e.g., 10" /></div> 
         <div class="hp-popup-field"><label for="damageInput">Damage:</label><input type="number" id="damageInput" min="0" placeholder="e.g., 15" /></div> 
-        <div class="hp-popup-field"><label for="addTempHpInput">Add Temp HP:</label><input type="number" id="addTempHpInput" min="0" placeholder="e.g., 5" /></div> 
+        <div class="hp-popup-field"><label for="addTempHpInput">Add Temp HP:</label><input type="number"id="addTempHpInput" min="0" placeholder="e.g., 5" /></div> 
         <button onclick="applyHpChange()">Apply</button> 
     </div>
   </div>
+
+  <!-- ... -->
 
 </body>
 </html>

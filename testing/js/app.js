@@ -21,9 +21,12 @@ let themeToggle, creatureModal, modalForm, hpPopup;
 function loadAppState() {
     const saved = localStorage.getItem('trackerData');
     if (!saved) {
-        loadInitialDashboardData();
-        logChange("Loaded initial example dashboard data.");
-        renderDashboardList();
+        // These dashboard functions are in dashboard.js, which is loaded
+        if (typeof loadInitialDashboardData === 'function') {
+            loadInitialDashboardData(); 
+            logChange("Loaded initial example dashboard data.");
+            renderDashboardList();
+        }
         renderCombatants();
         return;
     }
@@ -39,19 +42,19 @@ function loadAppState() {
         combatants.forEach(migrateCombatant);
 
         document.body.classList.toggle('dark', state.isDarkTheme);
-        themeToggle.checked = state.isDarkTheme;
+        if(themeToggle) themeToggle.checked = state.isDarkTheme;
 
         document.getElementById('roundCounter').textContent = `Round: ${round}`;
         
         renderCombatants();
-        renderDashboardList();
+        if (typeof renderDashboardList === 'function') renderDashboardList();
         updateTurnDisplay();
         updateLogPanel();
         logChange("App state loaded from local storage.");
     } catch (err) {
-        console.error('Error loading tracker data:', err);
-        alert('Failed to load saved data. It might be corrupted.');
-        clearData(true);
+        console.error('Error loading tracker data from localStorage:', err);
+        alert('Failed to load saved data. It might be corrupted. Starting fresh.');
+        clearData(true); // Force clear corrupted data
     }
 }
 
@@ -71,9 +74,10 @@ function clearData(force = false) {
     localStorage.removeItem('trackerData');
     combatants = []; dashboards = []; folders = [];
     round = 1; currentTurnIndex = 0; historyLog = [];
-    loadInitialDashboardData();
+    
+    if (typeof loadInitialDashboardData === 'function') loadInitialDashboardData();
     renderCombatants();
-    renderDashboardList();
+    if (typeof renderDashboardList === 'function') renderDashboardList();
     updateTurnDisplay();
     logChange('🗑️ All encounter and dashboard data cleared.');
 }
@@ -108,13 +112,13 @@ function updateLogPanel() {
 }
 
 function getFlatCombatantList() {
-    return combatants.flatMap(c => c.isGroup ? c.members.map(m => ({ ...m, groupInit: c.init })) : [{ ...c, groupInit: c.init }]).sort((a, b) => b.groupInit - a.groupInit);
+    return combatants.flatMap(c => c.isGroup ? c.members.map(m => ({ ...m, groupInit: c.init })) : [{ ...c, groupInit: c.init }]).sort((a, b) => b.init - a.init || b.groupInit - a.groupInit);
 }
 
 function findCombatantById(id) {
     for (const c of combatants) {
         if (c.id === id) return c;
-        if (c.isGroup) {
+        if (c.isGroup && c.members) {
             const found = c.members.find(m => m.id === id);
             if (found) return found;
         }
@@ -122,21 +126,32 @@ function findCombatantById(id) {
     return null;
 }
 
+// This function correctly generates a unique name for new or duplicated combatants
 function getUniqueName(baseName) {
-    const match = baseName.match(/^(.*?)(?: (\d+))?$/);
+    const allNames = getFlatCombatantList().map(c => c.name);
+    if (!allNames.includes(baseName)) {
+        return baseName;
+    }
+    
+    const match = baseName.match(/^(.*?)(?: \((\d+)\))?$/);
     const namePart = match[1].trim();
-    let maxSuffix = 0;
-    getFlatCombatantList().forEach(c => {
-        const cMatch = c.name.match(/^(.+?)(?: (\d+))?$/);
-        if (!cMatch) return;
-        const cName = cMatch[1].trim();
-        const cNum = parseInt(cMatch[2]);
-        if (cName === namePart) {
-            maxSuffix = Math.max(maxSuffix, isNaN(cNum) ? 1 : cNum);
+    let maxSuffix = 1;
+
+    allNames.forEach(cName => {
+        if (cName.startsWith(namePart)) {
+            const cMatch = cName.match(/^(.*?)(?: \((\d+)\))?$/);
+            if (cMatch && cMatch[1].trim() === namePart) {
+                 const num = parseInt(cMatch[2], 10);
+                 if (!isNaN(num) && num >= maxSuffix) {
+                    maxSuffix = num + 1;
+                 }
+            }
         }
     });
-    return maxSuffix === 0 ? namePart : `${namePart} ${maxSuffix + 1}`;
+
+    return `${namePart} (${maxSuffix})`;
 }
+
 
 // ============================================
 // ========== IMPORT / EXPORT ==========
@@ -159,21 +174,23 @@ function handleFileImport(event) {
             
             combatants.forEach(migrateCombatant);
             document.body.classList.toggle('dark', state.isDarkTheme);
-            themeToggle.checked = state.isDarkTheme;
+            if(themeToggle) themeToggle.checked = state.isDarkTheme;
             
             document.getElementById('roundCounter').textContent = `Round: ${round}`;
             renderCombatants();
-            renderDashboardList();
+            if (typeof renderDashboardList === 'function') renderDashboardList();
             updateTurnDisplay();
+            updateLogPanel();
             logChange("📂 State loaded from file.");
         } catch (err) {
             console.error("Import Error:", err);
             alert('Failed to import file. It may be corrupted or in the wrong format.');
         } finally {
+            // Reset file input to allow importing the same file again
             event.target.value = '';
         }
     };
-    reader.readAsText(file);
+    reader.readAsText(file); // This must be called to start the reading process
 }
 
 function saveEncounter() {
@@ -204,14 +221,19 @@ function setupEventListeners() {
     // === ATTACH LISTENERS ===
     themeToggle.addEventListener('change', () => {
       document.body.classList.toggle('dark', themeToggle.checked);
+      document.body.classList.toggle('light', !themeToggle.checked);
       saveAppState();
     });
 
-    // Dashboard Panel
-    document.getElementById('seeDashboardsBtn').addEventListener('click', () => toggleDashboardPanel(true));
-    document.getElementById('closeDashboardBtn').addEventListener('click', () => toggleDashboardPanel(false));
-    document.getElementById('newDashboardBtn').addEventListener('click', createNewDashboard);
-    document.getElementById('newFolderBtn').addEventListener('click', createNewFolder);
+    // Dashboard Panel (check if buttons exist first)
+    const seeDashboardsBtn = document.getElementById('seeDashboardsBtn');
+    const closeDashboardBtn = document.getElementById('closeDashboardBtn');
+    const newDashboardBtn = document.getElementById('newDashboardBtn');
+    const newFolderBtn = document.getElementById('newFolderBtn');
+    if (seeDashboardsBtn && typeof toggleDashboardPanel === 'function') seeDashboardsBtn.addEventListener('click', () => toggleDashboardPanel(true));
+    if (closeDashboardBtn && typeof toggleDashboardPanel === 'function') closeDashboardBtn.addEventListener('click', () => toggleDashboardPanel(false));
+    if (newDashboardBtn && typeof createNewDashboard === 'function') newDashboardBtn.addEventListener('click', createNewDashboard);
+    if (newFolderBtn && typeof createNewFolder === 'function') newFolderBtn.addEventListener('click', createNewFolder);
     
     // Combat Tracker Main Buttons
     document.getElementById('addCombatantBtn').addEventListener('click', () => {
@@ -243,20 +265,19 @@ function setupEventListeners() {
         }
     });
     
-    // Import/Export and other controls
     document.getElementById('importInput').addEventListener('change', handleFileImport);
     
-    // FIX: Changed from ID to the existing onclick attribute for robust selection.
-    // This now correctly finds the button without needing an ID.
-    const clearButton = document.querySelector('.controls-row button[onclick="clearData()"]');
-    if (clearButton) {
-        clearButton.addEventListener('click', (e) => {
-            e.preventDefault(); // Prevent the onclick from firing twice
-            clearData(false);
-        });
-    } else {
-        console.error("Clear button not found!");
+    // Check for image upload input and function before adding listener
+    const imageUploadInput = document.getElementById('imageUploadInput');
+    if (imageUploadInput && typeof handleImageSelection === 'function') {
+        imageUploadInput.addEventListener('change', handleImageSelection);
     }
+    
+    // This is a safer way to handle the clear button
+    document.querySelector('button[onclick="clearData()"]').addEventListener('click', (e) => {
+        e.preventDefault(); // Stop the old onclick attribute
+        clearData(false); // Call the function directly
+    });
 }
 
 // ============================================
