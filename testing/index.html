@@ -5,12 +5,21 @@
   <title>D&D Combat Tracker & Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css" />
+  
+  <!-- SCRIPT LOADING -->
+  <!-- External library for drag-and-drop -->
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  
+  <!-- DEFERRED SCRIPTS -->
+  <!-- The 'defer' attribute ensures these scripts run ONLY AFTER the HTML body is fully parsed. -->
+  <!-- The order is important: app.js provides variables that the others use. -->
+  <script src="js/app.js" defer></script>
+  <script src="js/dashboard.js" defer></script>
+  <script src="js/combat_tracker.js" defer></script>
 </head>
 
 <body class="light">
 
-  <!-- New main container for the split-view layout -->
   <div id="app-container">
 
     <!-- ========== DASHBOARD SECTION (Left Panel) ========== -->
@@ -22,117 +31,16 @@
           <button id="closeDashboardBtn" title="Close Dashboard Panel">✖</button>
         </div>
         <div class="dashboard-controls">
-          <button>➕ New Dashboard</button>
+          <button id="newDashboardBtn">➕ New Dashboard</button>
           <button>⬇️ Sort: A–Z</button>
-          <button>📁 New Folder</button>
+          <button id="newFolderBtn">📁 New Folder</button>
         </div>
-        <div class="dashboard-list">
-          <!-- Folder: Session Notes -->
-          <div class="folder-container">
-            <div class="folder-header">📂 Session Notes <span class="folder-toggle">⬇</span></div>
-            <div class="folder-content">
-              <div class="dashboard-preview-card">
-                <div class="card-image">🧙‍♂️</div>
-                <div class="card-info">
-                  <div class="card-title">Turnden Forewit</div>
-                  <div class="card-desc">“Halfling rogue, good with locks.”</div>
-                </div>
-                <div class="card-edit">📝</div>
-              </div>
-              <div class="dashboard-preview-card">
-                <div class="card-image">🐉</div>
-                <div class="card-info">
-                  <div class="card-title">Lord Vareth</div>
-                  <div class="card-desc">“Ancient black dragon. Tricky political.”</div>
-                </div>
-                <div class="card-edit">📝</div>
-              </div>
-            </div>
-          </div>
-          <!-- Folder: Party Characters -->
-          <div class="folder-container">
-            <div class="folder-header">📂 Party Characters <span class="folder-toggle">⬆</span></div>
-            <div class="folder-content" style="display: none;">
-               <!-- Content would be here -->
-               <div class="dashboard-preview-card">
-                <div class="card-image">🧝</div>
-                <div class="card-info">
-                  <div class="card-title">Seralyn the White</div>
-                  <div class="card-desc">“Elf cleric. Healing focus. Brave.”</div>
-                </div>
-                <div class="card-edit">📝</div>
-              </div>
-            </div>
-          </div>
-          <!-- Lone Dashboards -->
-           <div class="folder-container">
-            <div class="folder-header">📄 Lone Dashboards</div>
-            <div class="folder-content">
-              <div class="dashboard-preview-card">
-                <div class="card-image">🧛</div>
-                <div class="card-info">
-                  <div class="card-title">The Crimson Fang</div>
-                  <div class="card-desc">“Vampire noble in disguise.”</div>
-                </div>
-                <div class="card-edit">📝</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div id="dashboard-list-container" class="dashboard-list"></div>
       </div>
 
       <!-- View 2: The editor for a single, open dashboard -->
       <div id="dashboard-sheet-view" class="dashboard-view">
-         <div class="sheet-header">
-           <button class="back-button">← Back to Dashboards</button>
-           <span class="sheet-title">Turnden Forewit</span>
-           <button class="lock-button">🔒 Locked</button>
-         </div>
-         <div class="sheet-portrait">
-            🧙‍♂️ Portrait Image
-         </div>
-         <div class="sheet-content">
-            <div class="sheet-block">
-              <div class="block-title">🔲 Block 1: Header</div>
-              <div class="block-content editable-text">"Halfling Rogue, Master of Locks"</div>
-            </div>
-            <div class="sheet-block">
-              <div class="block-title">🔲 Block 2: Stats Box (Editable)</div>
-              <div class="block-content stats-box">
-                <span>🎲 AC: 15</span>
-                <span>🎯 HP: 24/28</span>
-                <span>⚔️ Attack: +5</span>
-                <span>🧪 DEX +4</span>
-                <span>💭 INT +2</span>
-              </div>
-            </div>
-             <div class="sheet-block">
-              <div class="block-title">🔲 Block 3: Notes</div>
-              <div class="block-content editable-text">
-                “Found a strange orb in the ruins.”
-                <ul>
-                  <li>Investigate with wizard</li>
-                  <li>Check for traps next time</li>
-                </ul>
-              </div>
-            </div>
-             <div class="sheet-block">
-              <div class="block-title">🔲 Block 4: Death Saves / Status</div>
-              <div class="block-content death-saves">
-                <div>✅ Successes: ☑ ☑ ☐</div>
-                <div>❌ Failures: ☑ ☐ ☐</div>
-                <div>🩸 Status: Stable</div>
-              </div>
-            </div>
-             <div class="sheet-block">
-              <div class="block-title">🔲 Block 5: Inventory</div>
-              <div class="block-content inventory-list">
-                <div>🗡 Dagger ×2</div>
-                <div>🧪 Healing Potion ×1</div>
-                <div>📜 Scroll of Silence</div>
-              </div>
-            </div>
-         </div>
+        <!-- This container will be filled by app.js -->
       </div>
 
     </section>
@@ -156,7 +64,6 @@
 
       <main class="tracker-wrapper">
         <div class="controls-row">
-          <!-- NEW: "See Dashboards" button moved here -->
           <button id="seeDashboardsBtn">📋 See Dashboards</button>
           <button id="toggleLogBtn">📜 History Log</button>
           <span id="roundCounter">Round: 1</span>
@@ -165,68 +72,64 @@
           <button onclick="nextTurn()">➡ Next Turn</button>
           <button onclick="saveEncounter()">💾 Save</button>
           <button onclick="triggerImport()">📂 Load</button>
-          <button onclick="clearData()">🗑️ Clear</button>
+          <!-- Changed onclick to an ID for the event listener in app.js -->
+          <button id="clearDataBtn">🗑️ Clear</button> 
           <input type="file" id="importInput" accept=".json" hidden />
         </div>
 
         <div id="combatTable" class="tracker-table">
           <div class="tracker-table-header">
-            <div class="cell image-cell">[img]</div>
-            <div class="cell">[init]</div>
-            <div class="cell" contenteditable>[name]</div>
-            <div class="cell" contenteditable>[ac]</div>
-            <div class="cell" contenteditable>[hp]</div>
-            <div class="cell" contenteditable>[tempHp]</div>
-            <div class="cell" contenteditable>[maxHp]</div>
-            <div class="cell">[status tags]</div>
-            <div class="cell">[role]</div>
-            <div class="cell">[buttons/actions]</div>
+            <div class="cell image-cell">[img]</div><div class="cell">[init]</div><div class="cell">[name]</div><div class="cell">[ac]</div><div class="cell">[hp]</div><div class="cell">[tempHp]</div><div class="cell">[maxHp]</div><div class="cell">[status tags]</div><div class="cell">[role]</div><div class="cell">[buttons/actions]</div>
           </div>
           <div id="combatantList"></div>
         </div>
       </main>
     </section>
+  </div>
 
-  </div> <!-- End of app-container -->
+  <!-- ========== MODALS ========== -->
+  <!-- ADD COMBATANT MODAL -->
+  <div id="creatureModal" class="modal hidden"> 
+    <div class="modal-content"> 
+      <form id="modalCreatureForm"> 
+        <h2>Add Combatant</h2> 
+        <input type="text" id="modalName" placeholder="Name" required /> 
+        <input type="number" id="modalInit" placeholder="Initiative" required /> 
+        <input type="text" id="modalImage" placeholder="Image URL (optional)" /> 
+        <button type="button" id="showMoreBtn">+ More Fields</button> 
+        <div id="extraFields" class="hidden"> 
+          <input type="number" id="modalAC" placeholder="Armor Class" /> 
+          <input type="number" id="modalHP" placeholder="Current HP" /> 
+          <input type="number" id="modalMaxHP" placeholder="Max HP" /> 
+          <select id="modalRole"> 
+            <option value="player">Player</option> 
+            <option value="dm">DM</option> 
+          </select> 
+          <div class="modal-checkbox-field"> 
+            <input type="checkbox" id="modalIsSpellcaster" /> 
+            <label for="modalIsSpellcaster">Is Spellcaster?</label> 
+          </div> 
+        </div> 
+        <button type="submit">Add Creature</button> 
+      </form> 
+    </div> 
+  </div>
 
-
-  <!-- MODALS remain outside the main layout -->
-  <div id="creatureModal" class="modal hidden">
+  <!-- HISTORY LOG PANEL -->
+  <section id="trackerContainer" class="tracker-log-panel"> 
+    <div id="historyLogContent" class="log-content"></div> 
+  </section>
+  
+  <!-- HP ADJUSTMENT POPUP -->
+  <div id="hpPopup" class="modal hidden">
     <div class="modal-content">
-      <form id="modalCreatureForm">
-        <h2>Add Combatant</h2>
-        <input type="text" id="modalName" placeholder="Name" required />
-        <input type="number" id="modalInit" placeholder="Initiative" required />
-        <input type="text" id="modalImage" placeholder="Image URL (optional)" />
-        <button type="button" id="showMoreBtn">+ More Fields</button>
-        <div id="extraFields" class="hidden">
-          <input type="number" id="modalAC" placeholder="Armor Class" />
-          <input type="number" id="modalHP" placeholder="Current HP" />
-          <input type="number" id="modalMaxHP" placeholder="Max HP" />
-          <select id="modalRole">
-            <option value="player">Player</option>
-            <option value="dm">DM</option>
-          </select>
-          <div class="modal-checkbox-field">
-              <input type="checkbox" id="modalIsSpellcaster" />
-              <label for="modalIsSpellcaster">Is Spellcaster?</label>
-          </div>
-        </div>
-        <button type="submit">Add Creature</button>
-      </form>
+        <h3>Adjust HP</h3> 
+        <div class="hp-popup-field"><label for="healingInput">Healing:</label><input type="number" id="healingInput" min="0" placeholder="e.g., 10" /></div> 
+        <div class="hp-popup-field"><label for="damageInput">Damage:</label><input type="number" id="damageInput" min="0" placeholder="e.g., 15" /></div> 
+        <div class="hp-popup-field"><label for="addTempHpInput">Add Temp HP:</label><input type="number" id="addTempHpInput" min="0" placeholder="e.g., 5" /></div> 
+        <button onclick="applyHpChange()">Apply</button> 
     </div>
   </div>
-  <section id="trackerContainer" class="tracker-log-panel">
-    <div id="historyLogContent" class="log-content"></div>
-  </section>
-  <div id="hpPopup" class="modal hidden">
-    <h3>Adjust HP</h3>
-    <div class="hp-popup-field"><label for="healingInput">Healing:</label><input type="number" id="healingInput" min="0" placeholder="e.g., 10" /></div>
-    <div class="hp-popup-field"><label for="damageInput">Damage:</label><input type="number" id="damageInput" min="0" placeholder="e.g., 15" /></div>
-    <div class="hp-popup-field"><label for="addTempHpInput">Add Temp HP:</label><input type="number" id="addTempHpInput" min="0" placeholder="e.g., 5" /></div>
-    <button onclick="applyHpChange()">Apply</button>
-  </div>
 
-  <script src="script.js"></script>
 </body>
 </html>
