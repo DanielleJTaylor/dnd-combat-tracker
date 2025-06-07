@@ -7,15 +7,15 @@
   <link rel="stylesheet" href="style.css" />
   
   <!-- SCRIPT LOADING -->
-  <!-- External library for drag-and-drop -->
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   
-  <!-- DEFERRED SCRIPTS -->
-  <!-- The 'defer' attribute ensures these scripts run ONLY AFTER the HTML body is fully parsed. -->
-  <!-- The order is important: app.js provides variables that the others use. -->
-  <script src="js/app.js" defer></script>
+  <!-- DEFERRED SCRIPTS (CORRECT ORDER) -->
+  <!-- 1. Load the modules that define functions first. -->
   <script src="js/dashboard.js" defer></script>
   <script src="js/combat_tracker.js" defer></script>
+  
+  <!-- 2. Load the main app controller LAST, as it calls functions from the other files. -->
+  <script src="js/app.js" defer></script>
 </head>
 
 <body class="light">
@@ -24,7 +24,6 @@
 
     <!-- ========== DASHBOARD SECTION (Left Panel) ========== -->
     <section id="dashboard-section">
-      <!-- View 1: The list of all dashboards -->
       <div id="dashboard-panel-view" class="dashboard-view active">
         <div class="dashboard-header">
           <h3>📁 Dashboards</h3>
@@ -37,12 +36,8 @@
         </div>
         <div id="dashboard-list-container" class="dashboard-list"></div>
       </div>
-
-      <!-- View 2: The editor for a single, open dashboard -->
       <div id="dashboard-sheet-view" class="dashboard-view">
-        <!-- This container will be filled by app.js -->
       </div>
-
     </section>
 
     <!-- ========== COMBAT TRACKER SECTION (Right Panel) ========== -->
@@ -72,8 +67,7 @@
           <button onclick="nextTurn()">➡ Next Turn</button>
           <button onclick="saveEncounter()">💾 Save</button>
           <button onclick="triggerImport()">📂 Load</button>
-          <!-- Changed onclick to an ID for the event listener in app.js -->
-          <button id="clearDataBtn">🗑️ Clear</button> 
+          <button onclick="clearData()">🗑️ Clear</button> 
           <input type="file" id="importInput" accept=".json" hidden />
         </div>
 
@@ -88,7 +82,6 @@
   </div>
 
   <!-- ========== MODALS ========== -->
-  <!-- ADD COMBATANT MODAL -->
   <div id="creatureModal" class="modal hidden"> 
     <div class="modal-content"> 
       <form id="modalCreatureForm"> 
@@ -115,12 +108,10 @@
     </div> 
   </div>
 
-  <!-- HISTORY LOG PANEL -->
   <section id="trackerContainer" class="tracker-log-panel"> 
     <div id="historyLogContent" class="log-content"></div> 
   </section>
   
-  <!-- HP ADJUSTMENT POPUP -->
   <div id="hpPopup" class="modal hidden">
     <div class="modal-content">
         <h3>Adjust HP</h3> 

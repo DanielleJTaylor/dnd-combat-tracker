@@ -55,6 +55,7 @@ function handleAddCombatant(e) {
     creatureModal.classList.add('hidden');
     modalForm.reset();
 }
+//... (The rest of the combat_tracker.js file is the same as the previous correct version and can be copied from there)
 
 function addGroup() {
     const groupName = prompt("Enter group name:");
