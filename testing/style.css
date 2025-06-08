@@ -1,0 +1,347 @@
+/* ========== GLOBAL STYLES & HEADER ========== */
+:root {
+  --bg-dark: #1e1e1e; --bg-light: #2c2c2c; --text-light: #f0f0f0;
+  --accent: #00bfa6; --status-bg: #444; --status-border: #888;
+  --dm-color: #f36; --player-color: #6af; --dead-crimson: rgba(153, 0, 0, 0.3);
+  --bg-parchment: #fdf6e3; --border-parchment: #d0bfa2; --text-parchment: #4a3c1a;
+  --accent-parchment: #7fb069; --accent-parchment-hover: #6ca05b; --bg-parchment-darker: #f6e4c1;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+html, body { overflow: hidden; height: 100%; }
+body.dark { background-color: var(--bg-dark); color: var(--text-light); }
+body.light { background-color: var(--bg-parchment); color: var(--text-parchment); }
+h1 { font-size: 1.75rem; margin: 0.5em 1em; }
+header { display: flex; justify-content: space-between; align-items: center; padding: 1em; border-bottom: 2px solid var(--accent); background-color: var(--bg-light); }
+.theme-container { margin-left: auto; padding-left: 1em; }
+.theme-switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+.theme-switch input { opacity: 0; width: 0; height: 0; }
+.theme-switch .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #666; transition: 0.3s; border-radius: 24px; }
+.theme-switch .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: 0.3s; border-radius: 50%; }
+.theme-switch input:checked + .slider { background-color: var(--accent); }
+.theme-switch input:checked + .slider:before { transform: translateX(26px); }
+.button-group button, .controls-row button, .dashboard-controls button, .sheet-header button { background-color: var(--accent); border: none; color: black; padding: 6px 12px; margin: 4px; font-size: 0.9rem; border-radius: 6px; cursor: pointer; transition: background 0.2s ease; }
+.button-group button:hover, .controls-row button:hover, .dashboard-controls button:hover, .sheet-header button:hover { background-color: #00d2b2; }
+body.light header, body.light .controls-row { background-color: var(--bg-parchment-darker); color: var(--text-parchment); border-bottom-color: var(--border-parchment); }
+body.light button, body.light .button-group button, body.light .controls-row button, body.light .dashboard-controls button, body.light .sheet-header button { background-color: var(--accent-parchment); color: white; }
+body.light button:hover, body.light .button-group button:hover { background-color: var(--accent-parchment-hover); }
+
+/* ========== LAYOUT & STRUCTURE ========== */
+#app-container { display: flex; width: 100vw; height: 100vh; }
+#dashboard-section { width: 0; flex-shrink: 0; background-color: var(--bg-light); border-right: 2px solid var(--accent); transition: width 0.3s ease-in-out; overflow: hidden; display: flex; flex-direction: column; }
+#tracker-section { width: 100%; flex-grow: 1; transition: width 0.3s ease-in-out; display: flex; flex-direction: column; }
+#app-container.dashboard-visible #dashboard-section { width: 45%; }
+#app-container.dashboard-visible #tracker-section { width: 55%; }
+body.light #dashboard-section { background-color: var(--bg-parchment-darker); border-right-color: var(--border-parchment); }
+main.tracker-wrapper { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
+.controls-row { display: flex; flex-wrap: wrap; align-items: center; padding: 0.5em 1em; gap: 8px; background-color: var(--bg-light); border-bottom: 1px solid #444; flex-shrink: 0; }
+/* Find this rule and add/change the properties */
+.table-scroll-container {
+    flex-grow: 1;
+    /* CHANGE: Allow scrolling on BOTH axes */
+    overflow: auto; 
+    padding: 0 1em;
+}
+/* Find this rule and add a min-width */
+.tracker-table {
+  margin: 0 auto;
+  width: 100%;
+  /* ADD THIS LINE: This is the key to forcing horizontal scroll */
+  min-width: 1100px; /* Adjust this value if you add/remove columns */
+}
+.tracker-table-header {
+  display: grid;
+  /* OLD: grid-template-columns: 40px 60px 1fr 60px 100px 70px 150px 90px 150px; */
+  /* NEW: A more flexible layout */
+  grid-template-columns: 
+    minmax(40px, 0.5fr)   /* Img */
+    minmax(60px, 0.6fr)   /* Init */
+    minmax(150px, 2fr)  /* Name (will take up most of the flexible space) */
+    minmax(60px, 0.6fr)   /* AC */
+    minmax(120px, 1fr)  /* HP/Max (has more space now) */
+    minmax(70px, 0.7fr)   /* Temp HP */
+    minmax(150px, 1.5fr)/* Status */
+    minmax(90px, 0.8fr)   /* Role */
+    minmax(150px, 1.2fr);/* Actions */
+
+  /* ... rest of the styles for this rule ... */
+  align-items: center; 
+  padding: 6px 8px; 
+  font-weight: bold; 
+  background-color: #333; color: var(--text-light);
+  text-transform: uppercase; font-size: 0.85rem; border-radius: 6px; position: sticky; top: 0; z-index: 9; margin-top: 10px;
+}
+body.light .tracker-table-header { background-color: #f6e4c1; color: #4a3c1a; }
+
+/* ========== DASHBOARD STYLES ========== */
+.dashboard-view { display: none; height: 100%; flex-direction: column; }
+.dashboard-view.active { display: flex; }
+.dashboard-header { display: flex; justify-content: space-between; align-items: center; padding: 1.15rem 1rem; flex-shrink: 0; border-bottom: 1px solid #444; }
+.dashboard-header h3 { margin: 0; font-size: 1.5rem; }
+#closeDashboardBtn { background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-light); padding: 0 .5rem; }
+.dashboard-controls { padding: 0.5rem; display: flex; gap: 0.5rem; flex-shrink: 0; border-bottom: 1px solid #444; }
+.dashboard-list { padding: 1rem; overflow-y: auto; flex-grow: 1; }
+.folder-header { font-weight: bold; font-size: 1.1rem; padding: 0.5rem; border-bottom: 2px solid var(--accent); margin-bottom: 0.5rem; }
+.folder-content { min-height: 20px; }
+.dashboard-preview-card { display: flex; align-items: center; gap: 1rem; background-color: var(--bg-dark); padding: 0.75rem; border-radius: 8px; margin-bottom: 0.5rem; border-left: 4px solid var(--player-color); cursor: pointer; transition: background-color 0.2s; }
+.dashboard-preview-card:hover { background-color: #333; }
+.card-image { font-size: 2.5rem; }
+.card-info { flex-grow: 1; }
+.card-title { font-weight: bold; }
+.card-desc { font-style: italic; color: #aaa; font-size: 0.9rem; } /* Corrected: color and font-size on same line */
+.card-edit { font-size: 1.5rem; }
+.sheet-header { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; border-bottom: 1px solid #444; }
+.sheet-title { font-size: 1.2rem; font-weight: bold; }
+.sheet-portrait { height: 150px; background-color: #111; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #666; border-bottom: 1px solid #444; }
+.sheet-content { padding: 1rem; overflow-y: auto; flex-grow: 1; }
+.sheet-block { background-color: var(--bg-dark); border: 1px solid #444; border-radius: 6px; margin-bottom: 1rem; position: relative; }
+.block-title { padding: 0.5rem; font-weight: bold; background-color: #333; border-bottom: 1px solid #444; }
+.block-content { padding: 1rem; line-height: 1.5; }
+.sheet-unlocked .block-title { cursor: grab; }
+.sheet-unlocked .lock-button { background-color: var(--dm-color); }
+.sheet-unlocked .sheet-block:hover .delete-block-btn { display: block; }
+.delete-block-btn { display: none; position: absolute; top: 4px; right: 4px; background-color: var(--dm-color); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; line-height: 20px; text-align: center; cursor: pointer; font-size: 0.8rem; }
+body.light #dashboard-section, body.light .dashboard-header, body.light .dashboard-controls { border-color: var(--border-parchment); }
+body.light #closeDashboardBtn, body.light .card-desc { color: var(--text-parchment); }
+body.light .dashboard-preview-card { background-color: var(--bg-parchment); box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left-color: var(--accent-parchment-hover); }
+body.light .dashboard-preview-card:hover { background-color: #f1e6cf; }
+body.light .sheet-header, body.light .sheet-portrait, body.light .block-title, body.light .sheet-block { border-color: var(--border-parchment); }
+body.light .sheet-portrait { background-color: #e9d9b0; color: #9a8a6b; }
+body.light .sheet-block { background-color: #fffaf0; }
+body.light .block-title { background-color: #e9d9b0; }
+
+/* ========== COMBATANT & ROW STYLES ========== */
+.combatant-wrapper {
+    background-color: var(--bg-light);
+    /* Define each border side EXCEPT the top */
+    border-right: 1px solid #444;
+    border-bottom: 1px solid #444;
+    border-left: 1px solid #444;
+    border-top: none; /* Explicitly remove the top border */
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.2s ease-out;
+}
+
+/* Find this existing rule... */
+.group-header-wrapper {
+  background-color: #2e2e2e;
+  /* The explicit top border has been removed to get rid of the unwanted blue/teal line. */
+  border-top: none;
+}
+
+
+
+
+.group-member-wrapper { margin-left: 5%; width: 95%; background-color: #2e2e2e; }
+/* Find and update this rule to match the header exactly */
+.creature-row {
+  display: grid;
+  /* OLD: grid-template-columns: 40px 60px 1fr 60px 100px 70px 150px 90px 150px; */
+  /* NEW: A more flexible layout */
+  grid-template-columns: 
+    minmax(40px, 0.5fr)   /* Img */
+    minmax(60px, 0.6fr)   /* Init */
+    minmax(150px, 2fr)  /* Name */
+    minmax(60px, 0.6fr)   /* AC */
+    minmax(120px, 1fr)  /* HP/Max */
+    minmax(70px, 0.7fr)   /* Temp HP */
+    minmax(150px, 1.5fr)/* Status */
+    minmax(90px, 0.8fr)   /* Role */
+    minmax(150px, 1.2fr);/* Actions */
+  
+  /* ... rest of the styles for this rule ... */
+  align-items: center; 
+  padding: 6px 8px;
+}
+.combatant-wrapper > .creature-row { border-bottom: 1px solid #3a3a3a; }
+.combatant-wrapper > *:last-child { border-bottom: none; }
+.creature-row .cell { padding: 4px 6px; overflow-wrap: break-word; word-break: break-word; }
+.cell[contenteditable="true"] { background-color: #222; border: 1px dashed #555; border-radius: 4px; padding: 2px 4px; min-width: 40px; cursor: text; }
+/* .group-member .cell:first-child { visibility: hidden; } */
+.status-tag { background-color: var(--status-bg); border: 1px solid var(--status-border); color: white; border-radius: 12px; padding: 2px 6px; font-size: 0.75rem; margin: 2px 4px 2px 0; display: inline-block; }
+.cell select { background-color: #111; color: white; border: 1px solid #444; border-radius: 4px; }
+.combatant-image { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+.cell.image-cell { display: flex; align-items: center; justify-content: center; }
+.combatant-wrapper.current-turn { background-color: rgba(0, 191, 166, 0.1); border: 2px solid var(--accent); box-shadow: 0 0 10px rgba(0, 191, 166, 0.4); }
+.drop-zone { height: 12px; transition: background-color 0.2s, height 0.2s; }
+.drop-zone.highlight { background-color: rgba(0, 191, 166, 0.3); border: 1px dashed var(--accent); height: 30px; border-radius: 6px; }
+.hp-fraction-cell { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.hp-fraction-cell > div { padding: 2px 4px; min-width: 30px; text-align: center; }
+.hp-fraction-cell > span { color: #888; }
+
+body.light .combatant-wrapper {
+    background-color: #f7eddc;
+    /* Also specify each side for light mode */
+    border-right-color: var(--border-parchment);
+    border-bottom-color: var(--border-parchment);
+    border-left-color: var(--border-parchment);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+body.light .group-header-wrapper, body.light .group-member-wrapper { background-color: #e9d9b0; }
+body.light .combatant-wrapper > .creature-row { border-bottom-color: #e9d9b0; }
+body.light .cell[contenteditable="true"] { background-color: #fffaf0; color: #4a3c1a; border-color: #d0bfa2; }
+body.light .status-tag { background-color: #dfc9a4; border: 1px solid #c3a982; color: #4a3c1a; }
+body.light .cell select { background-color: #fffaf0; color: #4a3c1a; border-color: #d0bfa2; }
+body.light .combatant-wrapper.current-turn { background-color: rgba(127, 176, 105, 0.2); border: 2px solid #7fb069; box-shadow: 0 0 10px rgba(127, 176, 105, 0.4); }
+body.light .drop-zone.highlight { background-color: rgba(223, 201, 164, 0.4); border-color: #c3a982; }
+
+
+/* ========== SPELL SLOT PANEL STYLES ========== */
+.spell-slot-panel { padding: 10px 20px 10px 40px; display: flex; flex-direction: column; gap: 8px; }
+.spell-level-row { display: grid; grid-template-columns: 80px 110px 1fr; align-items: center; gap: 15px; padding: 4px; }
+.spell-level-label { font-weight: bold; font-size: 0.9rem; }
+.spell-slot-inputs { display: flex; align-items: center; justify-content: center; gap: 5px; }
+.slot-input { width: 45px; padding: 2px 4px; background-color: #111; color: white; border: 1px solid #555; border-radius: 4px; text-align: center; }
+.slot-separator { font-weight: bold; }
+.checkbox-container { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.checkbox-container input[type="checkbox"] { appearance: none; margin: 0; width: 16px; height: 16px; background-color: transparent; border: 2px solid #888; border-radius: 3px; cursor: pointer; position: relative; }
+.checkbox-container input[type="checkbox"]:checked {
+  background-color: var(--accent); border-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3e%3cpath d='M12.78 4.22a.75.75 0 0 1 0 1.06l-7.5 7.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 0 1 1.06-1.06L5 11.44l6.97-6.97a.75.75 0 0 1 1.06 0z'/%3e%3c/svg%3e");
+  background-position: center; background-repeat: no-repeat; background-size: 12px 12px;
+}
+body.light .slot-input { background-color: #fffaf0; color: #4a3c1a; border: 1px solid #d0bfa2; }
+body.light .checkbox-container input[type="checkbox"]:checked { background-color: var(--accent-parchment); border-color: var(--accent-parchment); }
+
+/* ========== MODAL, POPUP, & LOG PANEL STYLES ========== */
+.modal { display: flex; align-items: center; justify-content: center; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); }
+.modal.hidden, .popup.hidden { display: none; }
+.modal-content { background-color: var(--bg-light); padding: 20px; border: 1px solid #888; border-radius: 8px; width: 90%; max-width: 500px; }
+.popup { position: absolute; z-index: 9999; width: 250px; background: var(--bg-light); border: 1px solid #555; padding: 1em; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+.popup-content { padding: 0; } /* Added to remove extra padding */
+.hp-popup-field { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+#hpPopup button { background-color: var(--accent); color: black; margin-top: 10px; width: 100%; border: none; padding: 8px; border-radius: 6px; cursor: pointer; }
+.tracker-log-panel { position: fixed; top: 0; right: -400px; width: 400px; height: 100%; background-color: var(--bg-light); color: var(--text-light); border-left: 2px solid var(--accent); overflow-y: auto; transition: right 0.3s ease-in-out; z-index: 999; padding: 1em; box-shadow: -5px 0 15px rgba(0,0,0,0.3); }
+.tracker-log-panel.show-log { right: 0; }
+body.light .modal-content, body.light .popup { background-color: var(--bg-parchment); border-color: var(--border-parchment); color: var(--text-parchment); }
+body.light #hpPopup button { background-color: var(--accent-parchment); color: white; }
+body.light .tracker-log-panel { background-color: var(--bg-parchment); color: var(--text-parchment); border-left-color: var(--border-parchment); }
+
+
+
+
+/* ============================================ */
+/* ========== DEAD COMBATANT STYLES ========== */
+/* ============================================ */
+
+/* Default dead styles (applies in DARK MODE) */
+.combatant-wrapper.dead-combatant,
+.group-member-wrapper.dead-combatant {
+  background-color: var(--dead-crimson);
+  opacity: 0.3;
+  border: 1px solid rgba(153, 0, 0, 0.4);
+}
+
+/* This is the key: Override the default hover effects for dead combatants
+   by forcing them to look the same as their non-hovered state. */
+.combatant-wrapper.dead-combatant:hover,
+.group-member-wrapper.dead-combatant:hover {
+    background-color: var(--dead-crimson);
+    opacity: 0.3;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2); /* Reset box-shadow */
+}
+
+
+/* --- LIGHT THEME OVERRIDES --- */
+
+/* This is the most important fix: A more specific rule for dead combatants in Light Mode.
+   This rule will now correctly override the default parchment background. */
+body.light .combatant-wrapper.dead-combatant,
+body.light .group-member-wrapper.dead-combatant {
+  background-color: var(--dead-crimson); /* The red background will now apply! */
+  opacity: 0.3;
+  border-color: rgba(153, 0, 0, 0.5);
+}
+
+/* Also make the hover rule specific for light mode */
+body.light .combatant-wrapper.dead-combatant:hover,
+body.light .group-member-wrapper.dead-combatant:hover {
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Reset light-mode box-shadow */
+}
+
+
+/* --- SHARED STYLES FOR DEAD ROW CELLS (Both Themes) --- */
+
+/* Target ONLY the editable cells within a dead row */
+.dead-combatant .cell[contenteditable="true"] {
+  position: relative;
+  color: #777;
+}
+
+/* Light theme override for the dead text color */
+body.light .dead-combatant .cell[contenteditable="true"] {
+  color: #9a8a6b;
+}
+
+/* Apply the "X" overlay to editable cells */
+.dead-combatant .cell[contenteditable="true"]::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background:
+    linear-gradient(to top right, transparent 47.75%, black 48.75%, black 51.25%, transparent 52.25%),
+    linear-gradient(to top left,  transparent 47.75%, black 48.75%, black 51.25%, transparent 52.25%);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+
+
+
+/* === ADD THESE NEW STYLES for the fraction cell === */
+/* Find and replace these rules */
+.hp-fraction-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    background-color: #fff; /* White background */
+    color: #111; /* Dark text for contrast */
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 0 5px;
+}
+
+/* Style the individual parts of the fraction */
+.hp-fraction-cell > div {
+    padding: 2px 4px;
+    min-width: 30px;
+    text-align: center;
+    cursor: text;
+    /* Remove the default contenteditable outline */
+    outline: none;
+}
+
+/* The slash between the numbers */
+.hp-fraction-cell > span {
+    color: #555;
+}
+
+/* New style for the heart icon */
+.hp-heart-icon {
+    font-size: 0.8rem;
+}
+
+/* Light mode override for the fraction cell border */
+body.light .hp-fraction-cell {
+    border-color: #ccc;
+}
+
+
+/* Add a style to make the image area a clickable pointer */
+.cell.image-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer; /* Indicates it's clickable */
+  border-radius: 50%; /* Make the click area round */
+  transition: background-color 0.2s;
+}
+
+.cell.image-cell:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
