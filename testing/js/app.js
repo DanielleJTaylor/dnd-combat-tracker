@@ -111,6 +111,7 @@ function updateLogPanel() {
     }
 }
 
+<<<<<<< HEAD
 /**
  * **MODIFIED**
  * This function is now the single source of truth for the turn order.
@@ -154,6 +155,12 @@ function getFlatCombatantList() {
 }
 
 
+=======
+function getFlatCombatantList() {
+    return combatants.flatMap(c => c.isGroup ? c.members.map(m => ({ ...m, groupInit: c.init })) : [{ ...c, groupInit: c.init }]).sort((a, b) => b.init - a.init || b.groupInit - a.groupInit);
+}
+
+>>>>>>> 057fd65bd53aa459090a13f587721d4ee7858cb1
 function findCombatantById(id) {
     for (const c of combatants) {
         if (c.id === id) return c;
@@ -165,6 +172,7 @@ function findCombatantById(id) {
     return null;
 }
 
+<<<<<<< HEAD
 /**
  * **MODIFIED**
  * This function is now more robust and guarantees a unique name.
@@ -173,10 +181,16 @@ function getUniqueName(baseName) {
     const allCombatants = combatants.flatMap(c => c.isGroup ? [c, ...c.members] : c);
     const allNames = allCombatants.map(c => c.name);
 
+=======
+// This function correctly generates a unique name for new or duplicated combatants
+function getUniqueName(baseName) {
+    const allNames = getFlatCombatantList().map(c => c.name);
+>>>>>>> 057fd65bd53aa459090a13f587721d4ee7858cb1
     if (!allNames.includes(baseName)) {
         return baseName;
     }
     
+<<<<<<< HEAD
     // If the name already exists, find a new suffix.
     const rootName = baseName.replace(/\s\(\d+\)$/, '').trim();
     let suffix = 2;
@@ -188,6 +202,25 @@ function getUniqueName(baseName) {
     } while (allNames.includes(newName));
     
     return newName;
+=======
+    const match = baseName.match(/^(.*?)(?: \((\d+)\))?$/);
+    const namePart = match[1].trim();
+    let maxSuffix = 1;
+
+    allNames.forEach(cName => {
+        if (cName.startsWith(namePart)) {
+            const cMatch = cName.match(/^(.*?)(?: \((\d+)\))?$/);
+            if (cMatch && cMatch[1].trim() === namePart) {
+                 const num = parseInt(cMatch[2], 10);
+                 if (!isNaN(num) && num >= maxSuffix) {
+                    maxSuffix = num + 1;
+                 }
+            }
+        }
+    });
+
+    return `${namePart} (${maxSuffix})`;
+>>>>>>> 057fd65bd53aa459090a13f587721d4ee7858cb1
 }
 
 
@@ -224,10 +257,18 @@ function handleFileImport(event) {
             console.error("Import Error:", err);
             alert('Failed to import file. It may be corrupted or in the wrong format.');
         } finally {
+<<<<<<< HEAD
             event.target.value = '';
         }
     };
     reader.readAsText(file);
+=======
+            // Reset file input to allow importing the same file again
+            event.target.value = '';
+        }
+    };
+    reader.readAsText(file); // This must be called to start the reading process
+>>>>>>> 057fd65bd53aa459090a13f587721d4ee7858cb1
 }
 
 function saveEncounter() {
@@ -304,14 +345,25 @@ function setupEventListeners() {
     
     document.getElementById('importInput').addEventListener('change', handleFileImport);
     
+<<<<<<< HEAD
+=======
+    // Check for image upload input and function before adding listener
+>>>>>>> 057fd65bd53aa459090a13f587721d4ee7858cb1
     const imageUploadInput = document.getElementById('imageUploadInput');
     if (imageUploadInput && typeof handleImageSelection === 'function') {
         imageUploadInput.addEventListener('change', handleImageSelection);
     }
     
+<<<<<<< HEAD
     document.querySelector('button[onclick="clearData()"]').addEventListener('click', (e) => {
         e.preventDefault();
         clearData(false);
+=======
+    // This is a safer way to handle the clear button
+    document.querySelector('button[onclick="clearData()"]').addEventListener('click', (e) => {
+        e.preventDefault(); // Stop the old onclick attribute
+        clearData(false); // Call the function directly
+>>>>>>> 057fd65bd53aa459090a13f587721d4ee7858cb1
     });
 }
 
