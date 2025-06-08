@@ -82,6 +82,85 @@ function clearData(force = false) {
     logChange('🗑️ All encounter and dashboard data cleared.');
 }
 
+
+// =======================================================
+// ========== DATA I/O FUNCTIONS (SAVE/LOAD FILE) ==========
+// =======================================================
+
+/**
+ * Triggers the hidden file input element.
+ */
+function triggerImport() {
+    document.getElementById('importInput').click();
+}
+
+/**
+ * Handles the file selection event to load data from a JSON file.
+ * This is the event handler for the hidden file input.
+ * @param {Event} event The file input change event.
+ */
+function handleFileImport(event) {
+    const file = event.target.files[0];
+    if (!file) {
+        return; // User cancelled the dialog
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const importedState = JSON.parse(e.target.result);
+
+            // Validate that the imported data has the expected structure
+            if (typeof importedState.combatants === 'undefined' || typeof importedState.dashboards === 'undefined') {
+                throw new Error("Invalid or corrupted file format.");
+            }
+
+            // Manually update global state from the imported file
+            combatants = importedState.combatants || [];
+            dashboards = importedState.dashboards || [];
+            folders = importedState.folders || [];
+            round = importedState.round || 1;
+            currentTurnIndex = importedState.currentTurnIndex || 0;
+            historyLog = importedState.historyLog || [];
+            
+            // Call the main loading function to process and render everything correctly.
+            // This is better than setting variables one-by-one because loadAppState
+            // handles all the rendering calls and migrations.
+            logChange(`📂 Successfully imported data from ${file.name}.`);
+            localStorage.setItem('trackerData', e.target.result); // Save the imported data to localStorage
+            loadAppState(); // Reload the UI from the new state
+            
+        } catch (error) {
+            console.error('Error parsing imported file:', error);
+            alert(`Failed to load file. It might be corrupted or not a valid tracker JSON file.\n\nError: ${error.message}`);
+        } finally {
+            // Clear the input value to allow re-importing the same file
+            event.target.value = '';
+        }
+    };
+    reader.readAsText(file);
+}
+
+/**
+ * Saves the current state to a JSON file and triggers a download.
+ */
+function saveEncounter() {
+    // First, ensure the current state is saved to localStorage format
+    saveAppState(); 
+    // Now, retrieve that complete state object
+    const stateJSON = localStorage.getItem('trackerData');
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(JSON.parse(stateJSON), null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `dnd-encounter-${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+    logChange('💾 Encounter data saved to file.');
+}
+
+
 function migrateCombatant(c) {
     if (c.spellSlots && typeof c.spellSlotsVisible === 'undefined') {
         c.spellSlotsVisible = false;
@@ -91,200 +170,7 @@ function migrateCombatant(c) {
     }
 }
 
-// ============================================
-// ========== UTILITIES (SHARED) ==========
-// ============================================
-function generateUniqueId() { return `${Date.now()}-${Math.floor(Math.random() * 100000)}`; }
 
-function logChange(msg) {
-    const timestamp = new Date().toLocaleTimeString();
-    historyLog.push(`[${timestamp}] ${msg}`);
-    updateLogPanel();
-    saveAppState();
-}
-
-function updateLogPanel() {
-    const logContent = document.getElementById('historyLogContent');
-    if (logContent) {
-        logContent.innerHTML = historyLog.map(line => `<div>${line}</div>`).join('');
-        logContent.scrollTop = logContent.scrollHeight;
-    }
-}
-
-<<<<<<< HEAD
-/**
- * **MODIFIED**
- * This function is now the single source of truth for the turn order.
- * It flattens the combatant list and applies a multi-level sort to prevent skipping.
- * 1. Initiative (descending)
- * 2. Name (alphabetical, ascending)
- * 3. Suffix number in name (ascending)
- */
-function getFlatCombatantList() {
-    const flatList = combatants.flatMap(c => 
-        c.isGroup ? c.members.map(m => ({ ...m, init: c.init })) : c
-    );
-
-    // Helper to parse name and number, e.g., "Orc (12)" -> { name: "Orc", num: 12 }
-    const parseName = (nameStr) => {
-        const match = nameStr.match(/^(.*?)(?:\s\((\d+)\))?$/);
-        return {
-            name: match[1].trim(),
-            num: match[2] ? parseInt(match[2], 10) : 0
-        };
-    };
-
-    flatList.sort((a, b) => {
-        // 1. Primary Sort: Initiative (descending)
-        const initDiff = b.init - a.init;
-        if (initDiff !== 0) return initDiff;
-
-        // 2. Secondary Sort (Tie-breaker): Name and Number
-        const aParsed = parseName(a.name);
-        const bParsed = parseName(b.name);
-
-        // Sort by base name alphabetically
-        const nameDiff = aParsed.name.localeCompare(bParsed.name);
-        if (nameDiff !== 0) return nameDiff;
-
-        // If base names are the same, sort by number
-        return aParsed.num - bParsed.num;
-    });
-
-    return flatList;
-}
-
-
-=======
-function getFlatCombatantList() {
-    return combatants.flatMap(c => c.isGroup ? c.members.map(m => ({ ...m, groupInit: c.init })) : [{ ...c, groupInit: c.init }]).sort((a, b) => b.init - a.init || b.groupInit - a.groupInit);
-}
-
->>>>>>> 057fd65bd53aa459090a13f587721d4ee7858cb1
-function findCombatantById(id) {
-    for (const c of combatants) {
-        if (c.id === id) return c;
-        if (c.isGroup && c.members) {
-            const found = c.members.find(m => m.id === id);
-            if (found) return found;
-        }
-    }
-    return null;
-}
-
-<<<<<<< HEAD
-/**
- * **MODIFIED**
- * This function is now more robust and guarantees a unique name.
- */
-function getUniqueName(baseName) {
-    const allCombatants = combatants.flatMap(c => c.isGroup ? [c, ...c.members] : c);
-    const allNames = allCombatants.map(c => c.name);
-
-=======
-// This function correctly generates a unique name for new or duplicated combatants
-function getUniqueName(baseName) {
-    const allNames = getFlatCombatantList().map(c => c.name);
->>>>>>> 057fd65bd53aa459090a13f587721d4ee7858cb1
-    if (!allNames.includes(baseName)) {
-        return baseName;
-    }
-    
-<<<<<<< HEAD
-    // If the name already exists, find a new suffix.
-    const rootName = baseName.replace(/\s\(\d+\)$/, '').trim();
-    let suffix = 2;
-    let newName;
-    
-    do {
-        newName = `${rootName} (${suffix})`;
-        suffix++;
-    } while (allNames.includes(newName));
-    
-    return newName;
-=======
-    const match = baseName.match(/^(.*?)(?: \((\d+)\))?$/);
-    const namePart = match[1].trim();
-    let maxSuffix = 1;
-
-    allNames.forEach(cName => {
-        if (cName.startsWith(namePart)) {
-            const cMatch = cName.match(/^(.*?)(?: \((\d+)\))?$/);
-            if (cMatch && cMatch[1].trim() === namePart) {
-                 const num = parseInt(cMatch[2], 10);
-                 if (!isNaN(num) && num >= maxSuffix) {
-                    maxSuffix = num + 1;
-                 }
-            }
-        }
-    });
-
-    return `${namePart} (${maxSuffix})`;
->>>>>>> 057fd65bd53aa459090a13f587721d4ee7858cb1
-}
-
-
-// ============================================
-// ========== IMPORT / EXPORT ==========
-// ============================================
-function triggerImport() { document.getElementById('importInput').click(); }
-
-function handleFileImport(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const state = JSON.parse(e.target.result);
-            combatants = state.combatants || [];
-            dashboards = state.dashboards || [];
-            folders = state.folders || [];
-            round = state.round || 1;
-            currentTurnIndex = state.currentTurnIndex || 0;
-            historyLog = state.historyLog || [];
-            
-            combatants.forEach(migrateCombatant);
-            document.body.classList.toggle('dark', state.isDarkTheme);
-            if(themeToggle) themeToggle.checked = state.isDarkTheme;
-            
-            document.getElementById('roundCounter').textContent = `Round: ${round}`;
-            renderCombatants();
-            if (typeof renderDashboardList === 'function') renderDashboardList();
-            updateTurnDisplay();
-            updateLogPanel();
-            logChange("📂 State loaded from file.");
-        } catch (err) {
-            console.error("Import Error:", err);
-            alert('Failed to import file. It may be corrupted or in the wrong format.');
-        } finally {
-<<<<<<< HEAD
-            event.target.value = '';
-        }
-    };
-    reader.readAsText(file);
-=======
-            // Reset file input to allow importing the same file again
-            event.target.value = '';
-        }
-    };
-    reader.readAsText(file); // This must be called to start the reading process
->>>>>>> 057fd65bd53aa459090a13f587721d4ee7858cb1
-}
-
-function saveEncounter() {
-    const state = {
-        combatants, dashboards, folders, round,
-        currentTurnIndex, historyLog,
-        isDarkTheme: document.body.classList.contains('dark')
-    };
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `dnd-dashboard-state-${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-    logChange("💾 Full application state saved to file.");
-}
 
 // ============================================
 // ========== EVENT LISTENERS ==========
@@ -345,25 +231,15 @@ function setupEventListeners() {
     
     document.getElementById('importInput').addEventListener('change', handleFileImport);
     
-<<<<<<< HEAD
-=======
-    // Check for image upload input and function before adding listener
->>>>>>> 057fd65bd53aa459090a13f587721d4ee7858cb1
     const imageUploadInput = document.getElementById('imageUploadInput');
     if (imageUploadInput && typeof handleImageSelection === 'function') {
         imageUploadInput.addEventListener('change', handleImageSelection);
     }
     
-<<<<<<< HEAD
-    document.querySelector('button[onclick="clearData()"]').addEventListener('click', (e) => {
-        e.preventDefault();
-        clearData(false);
-=======
     // This is a safer way to handle the clear button
     document.querySelector('button[onclick="clearData()"]').addEventListener('click', (e) => {
         e.preventDefault(); // Stop the old onclick attribute
-        clearData(false); // Call the function directly
->>>>>>> 057fd65bd53aa459090a13f587721d4ee7858cb1
+        clearData(false);   // Call the function directly
     });
 }
 

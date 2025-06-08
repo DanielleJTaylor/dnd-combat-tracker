@@ -668,3 +668,4 @@ function updateMaxSlots(id, value, level) {
     const c = findCombatantById(id)?.spellSlots?.[level]; if (!c) return;
     const max = parseInt(value, 10); if (!isNaN(max) && max >= 0) { c.m = max; c.c = Math.min(c.c, c.m); renderCombatants(); }
 }
+
