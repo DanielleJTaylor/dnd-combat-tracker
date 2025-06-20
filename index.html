@@ -10,11 +10,8 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   
   <!-- DEFERRED SCRIPTS (CORRECT ORDER) -->
-  <!-- 1. Load the modules that define functions first. -->
   <script src="js/dashboard.js" defer></script>
   <script src="js/combat_tracker.js" defer></script>
-  
-  <!-- 2. Load the main app controller LAST, as it calls functions from the other files. -->
   <script src="js/app.js" defer></script>
 </head>
 
@@ -57,10 +54,7 @@
         </div>
       </header>
 
-      <!-- ... inside <section id="tracker-section"> ... </header> is here -->
-
       <main class="tracker-wrapper">
-          <!-- The controls row is NOW OUTSIDE the main scrollable area -->
           <div class="controls-row">
             <button id="seeDashboardsBtn">📋 See Dashboards</button>
             <button id="toggleLogBtn">📜 History Log</button>
@@ -70,16 +64,11 @@
             <button onclick="nextTurn()">➡ Next Turn</button>
             <button onclick="saveEncounter()">💾 Save</button>
             <button onclick="triggerImport()">📂 Load</button>
-            <!-- ... all your other buttons ... -->
             <button onclick="clearData()">🗑️ Clear</button> 
             <input type="file" id="importInput" accept=".json" hidden />
-            
-            <!-- ADD THIS LINE for image uploads -->
             <input type="file" id="imageUploadInput" accept="image/*" hidden />
           </div>
-          <!-- ... rest of main ... -->
 
-          <!-- NEW WRAPPER for the table content that will scroll -->
           <div class="table-scroll-container">
               <div id="combatTable" class="tracker-table">
                 <div class="tracker-table-header">
@@ -87,10 +76,8 @@
                     <div class="cell">[init]</div>
                     <div class="cell">[name]</div>
                     <div class="cell">[ac]</div>
-                    <!-- Change this from [hp] -->
                     <div class="cell">[hp/max]</div>
                     <div class="cell">[tempHp]</div>
-                    <!-- REMOVE the separate [maxHp] header -->
                     <div class="cell">[status tags]</div>
                     <div class="cell">[role]</div>
                     <div class="cell">[buttons/actions]</div>
@@ -99,57 +86,26 @@
               </div>
           </div>
         </main>
-
-      <!-- ... </section> and rest of body ... -->
     </section>
-  </div>
-
-  <!-- ========== MODALS ========== -->
-  <div id="creatureModal" class="modal hidden"> 
-    <div class="modal-content"> 
-      <form id="modalCreatureForm"> 
-        <h2>Add Combatant</h2> 
-        <input type="text" id="modalName" placeholder="Name" required /> 
-        <input type="number" id="modalInit" placeholder="Initiative" required /> 
-        <input type="text" id="modalImage" placeholder="Image URL (optional)" /> 
-        <button type="button" id="showMoreBtn">+ More Fields</button> 
-        <div id="extraFields" class="hidden"> 
-          <input type="number" id="modalAC" placeholder="Armor Class" /> 
-          <input type="number" id="modalHP" placeholder="Current HP" /> 
-          <input type="number" id="modalMaxHP" placeholder="Max HP" /> 
-          <select id="modalRole"> 
-            <option value="player">Player</option> 
-            <option value="dm">DM</option> 
-          </select> 
-          <div class="modal-checkbox-field"> 
-            <input type="checkbox" id="modalIsSpellcaster" /> 
-            <label for="modalIsSpellcaster">Is Spellcaster?</label> 
-          </div> 
-        </div> 
-        <button type="submit">Add Creature</button> 
-      </form> 
-    </div> 
   </div>
 
   <section id="trackerContainer" class="tracker-log-panel"> 
     <div id="historyLogContent" class="log-content"></div> 
   </section>
   
-  <!-- ... inside the <body> ... -->
-  
-  <!-- HP ADJUSTMENT POPUP -->
-  <!-- CHANGE THE CLASS on the line below -->
   <div id="hpPopup" class="popup hidden"> 
-    <div class="popup-content"> <!-- Also good practice to change this class -->
+    <div class="popup-content">
         <h3>Adjust HP</h3> 
         <div class="hp-popup-field"><label for="healingInput">Healing:</label><input type="number" id="healingInput" min="0" placeholder="e.g., 10" /></div> 
         <div class="hp-popup-field"><label for="damageInput">Damage:</label><input type="number" id="damageInput" min="0" placeholder="e.g., 15" /></div> 
-        <div class="hp-popup-field"><label for="addTempHpInput">Add Temp HP:</label><input type="number"id="addTempHpInput" min="0" placeholder="e.g., 5" /></div> 
+        <div class="hp-popup-field"><label for="addTempHpInput">Add Temp HP:</label><input type="number"id="addTempHpInput" min="0" placeholder="e.g., 5" /></div>
+        <div class="hp-popup-field">
+            <label for="tempHpDurationInput">Duration (rounds):</label>
+            <input type="number" id="tempHpDurationInput" min="1" placeholder="Infinity" />
+        </div>
         <button onclick="applyHpChange()">Apply</button> 
     </div>
   </div>
-
-  <!-- ... -->
 
 </body>
 </html>

@@ -58,16 +58,18 @@ function renderDashboardList() {
     });
 
     const loneDashboards = dashboards.filter(d => !d.folderId);
-    const loneEl = document.createElement('div');
-    loneEl.className = 'folder-container';
-    loneEl.innerHTML = `
-        <div class="folder-header">📄 Lone Dashboards</div>
-        <div class="folder-content" data-folder-id="null">
-            ${loneDashboards.map(createDashboardCardHTML).join('')}
-        </div>
-    `;
-    container.appendChild(loneEl);
-
+    if (loneDashboards.length > 0) {
+        const loneEl = document.createElement('div');
+        loneEl.className = 'folder-container';
+        loneEl.innerHTML = `
+            <div class="folder-header">📄 Lone Dashboards</div>
+            <div class="folder-content" data-folder-id="null">
+                ${loneDashboards.map(createDashboardCardHTML).join('')}
+            </div>
+        `;
+        container.appendChild(loneEl);
+    }
+    
     container.querySelectorAll('.dashboard-preview-card').forEach(card => {
         card.addEventListener('click', () => openDashboardSheet(card.dataset.id));
     });
@@ -183,6 +185,7 @@ function initializeDashboardSortables() {
                     const newFolderId = evt.to.dataset.folderId;
                     dashboard.folderId = (newFolderId === 'null') ? null : newFolderId;
                     logChange(`Moved ${dashboard.title} to a new folder.`);
+                    saveAppState();
                 }
             }
         });
@@ -200,6 +203,7 @@ function initializeBlockSortable(dashboard) {
             const [movedBlock] = dashboard.blocks.splice(oldIndex, 1);
             dashboard.blocks.splice(newIndex, 0, movedBlock);
             logChange(`Reordered blocks in ${dashboard.title}`);
+            saveAppState();
         }
     });
 }

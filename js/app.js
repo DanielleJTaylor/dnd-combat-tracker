@@ -12,7 +12,8 @@ let historyLog = [];
 let currentlyOpenDashboardId = null;
 
 // --- DOM ELEMENT VARIABLES (DECLARED BUT NOT ASSIGNED) ---
-let themeToggle, creatureModal, modalForm, hpPopup;
+// MODIFIED: Removed modal-related variables
+let themeToggle, hpPopup; 
 
 // ============================================
 // ========== INITIALIZATION & APP STATE ==========
@@ -21,7 +22,6 @@ let themeToggle, creatureModal, modalForm, hpPopup;
 function loadAppState() {
     const saved = localStorage.getItem('trackerData');
     if (!saved) {
-        // These dashboard functions are in dashboard.js, which is loaded
         if (typeof loadInitialDashboardData === 'function') {
             loadInitialDashboardData(); 
             logChange("Loaded initial example dashboard data.");
@@ -87,67 +87,36 @@ function clearData(force = false) {
 // ========== DATA I/O FUNCTIONS (SAVE/LOAD FILE) ==========
 // =======================================================
 
-/**
- * Triggers the hidden file input element.
- */
 function triggerImport() {
     document.getElementById('importInput').click();
 }
 
-/**
- * Handles the file selection event to load data from a JSON file.
- * This is the event handler for the hidden file input.
- * @param {Event} event The file input change event.
- */
 function handleFileImport(event) {
     const file = event.target.files[0];
-    if (!file) {
-        return; // User cancelled the dialog
-    }
+    if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
             const importedState = JSON.parse(e.target.result);
-
-            // Validate that the imported data has the expected structure
             if (typeof importedState.combatants === 'undefined' || typeof importedState.dashboards === 'undefined') {
                 throw new Error("Invalid or corrupted file format.");
             }
-
-            // Manually update global state from the imported file
-            combatants = importedState.combatants || [];
-            dashboards = importedState.dashboards || [];
-            folders = importedState.folders || [];
-            round = importedState.round || 1;
-            currentTurnIndex = importedState.currentTurnIndex || 0;
-            historyLog = importedState.historyLog || [];
-            
-            // Call the main loading function to process and render everything correctly.
-            // This is better than setting variables one-by-one because loadAppState
-            // handles all the rendering calls and migrations.
             logChange(`📂 Successfully imported data from ${file.name}.`);
-            localStorage.setItem('trackerData', e.target.result); // Save the imported data to localStorage
-            loadAppState(); // Reload the UI from the new state
-            
+            localStorage.setItem('trackerData', e.target.result);
+            loadAppState();
         } catch (error) {
             console.error('Error parsing imported file:', error);
             alert(`Failed to load file. It might be corrupted or not a valid tracker JSON file.\n\nError: ${error.message}`);
         } finally {
-            // Clear the input value to allow re-importing the same file
             event.target.value = '';
         }
     };
     reader.readAsText(file);
 }
 
-/**
- * Saves the current state to a JSON file and triggers a download.
- */
 function saveEncounter() {
-    // First, ensure the current state is saved to localStorage format
     saveAppState(); 
-    // Now, retrieve that complete state object
     const stateJSON = localStorage.getItem('trackerData');
 
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(JSON.parse(stateJSON), null, 2));
@@ -160,16 +129,18 @@ function saveEncounter() {
     logChange('💾 Encounter data saved to file.');
 }
 
-
 function migrateCombatant(c) {
-    if (c.spellSlots && typeof c.spellSlotsVisible === 'undefined') {
-        c.spellSlotsVisible = false;
+    if (c.spellSlots && typeof c.spellSlotsVisible === 'undefined') c.spellSlotsVisible = false;
+    if (c.statusEffects && c.statusEffects.length > 0 && typeof c.statusEffects[0].appliedRound === 'undefined') {
+        c.statusEffects = c.statusEffects.map(se => ({ id: generateUniqueId(), name: se.name, duration: se.rounds === Infinity ? Infinity : se.rounds, appliedRound: round }));
     }
-    if (c.isGroup && c.members) {
-        c.members.forEach(migrateCombatant);
+    if (typeof c.tempHp === 'number' && c.tempHp > 0) {
+        c.tempHpSources = [{ id: generateUniqueId(), amount: c.tempHp, duration: Infinity, appliedRound: round }];
     }
+    if (!c.tempHpSources) c.tempHpSources = [];
+    delete c.tempHp;
+    if (c.isGroup && c.members) c.members.forEach(migrateCombatant);
 }
-
 
 
 // ============================================
@@ -178,8 +149,6 @@ function migrateCombatant(c) {
 function setupEventListeners() {
     // === ASSIGN DOM CONSTANTS ===
     themeToggle = document.getElementById('themeToggle');
-    creatureModal = document.getElementById('creatureModal');
-    modalForm = document.getElementById('modalCreatureForm');
     hpPopup = document.getElementById('hpPopup');
 
     // === ATTACH LISTENERS ===
@@ -189,7 +158,7 @@ function setupEventListeners() {
       saveAppState();
     });
 
-    // Dashboard Panel (check if buttons exist first)
+    // Dashboard Panel
     const seeDashboardsBtn = document.getElementById('seeDashboardsBtn');
     const closeDashboardBtn = document.getElementById('closeDashboardBtn');
     const newDashboardBtn = document.getElementById('newDashboardBtn');
@@ -199,14 +168,9 @@ function setupEventListeners() {
     if (newDashboardBtn && typeof createNewDashboard === 'function') newDashboardBtn.addEventListener('click', createNewDashboard);
     if (newFolderBtn && typeof createNewFolder === 'function') newFolderBtn.addEventListener('click', createNewFolder);
     
-    // Combat Tracker Main Buttons
-    document.getElementById('addCombatantBtn').addEventListener('click', () => {
-        creatureModal.classList.remove('hidden');
-        modalForm.reset();
-        document.getElementById('extraFields').classList.add('hidden');
-        document.getElementById('modalName').focus();
-    });
-    document.getElementById('addGroupBtn').addEventListener('click', addGroup);
+    // === MODIFIED: Combat Tracker Main Buttons now call direct-add functions ===
+    document.getElementById('addCombatantBtn').addEventListener('click', addDefaultCombatant);
+    document.getElementById('addGroupBtn').addEventListener('click', addDefaultGroup);
     document.getElementById('startEncounterBtn').addEventListener('click', startEncounter);
 
     // Combat Tracker Controls
@@ -214,16 +178,9 @@ function setupEventListeners() {
         document.getElementById('trackerContainer').classList.toggle('show-log');
     });
     
-    // Modals and Popups
-    document.getElementById('showMoreBtn').addEventListener('click', () => {
-        document.getElementById('extraFields').classList.toggle('hidden');
-    });
-    modalForm.addEventListener('submit', handleAddCombatant);
-
+    // === MODIFIED: Removed modal-related listeners ===
     window.addEventListener('click', (e) => {
-        if (e.target === creatureModal) {
-            creatureModal.classList.add('hidden');
-        }
+        // This listener now ONLY handles the HP popup
         if (!hpPopup.classList.contains('hidden') && !hpPopup.contains(e.target) && !e.target.closest('[data-field="hp"], [data-field="tempHp"]')) {
             hpPopup.classList.add('hidden');
         }
@@ -236,10 +193,9 @@ function setupEventListeners() {
         imageUploadInput.addEventListener('change', handleImageSelection);
     }
     
-    // This is a safer way to handle the clear button
     document.querySelector('button[onclick="clearData()"]').addEventListener('click', (e) => {
-        e.preventDefault(); // Stop the old onclick attribute
-        clearData(false);   // Call the function directly
+        e.preventDefault();
+        clearData(false);
     });
 }
 
