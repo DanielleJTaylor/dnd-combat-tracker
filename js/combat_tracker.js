@@ -46,9 +46,6 @@ function startEncounter() {
 // ========== RENDERING & DISPLAY LOGIC ==========
 // ============================================
 
-/**
- * FIXED: This function now correctly sorts the visual display to match the turn order.
- */
 function renderCombatants() {
     const list = document.getElementById('combatantList');
     if (!list) return;
@@ -114,9 +111,16 @@ function createCombatantWrapper(c, isGrouped = false, groupRef = null) {
     return wrapper;
 }
 
+/**
+ * FIXED: The logic for determining a defeated group is now correct.
+ */
 function createGroupHeaderWrapper(group) {
     const wrapper = document.createElement('div');
-    const isGroupDefeated = group.members.length === 0 || group.members.every(member => member.hp <= 0);
+    
+    // THE FIX IS HERE: A group is only "defeated" if it has members AND all of them are at 0 HP.
+    // An empty group is not considered defeated.
+    const isGroupDefeated = group.members.length > 0 && group.members.every(member => member.hp <= 0);
+    
     wrapper.className = `combatant-wrapper group-header-wrapper ${isGroupDefeated ? 'dead-combatant' : ''}`;
     wrapper.setAttribute("draggable", "true");
     wrapper.dataset.combatantId = group.id;
@@ -141,7 +145,7 @@ function createGroupHeaderWrapper(group) {
     return wrapper;
 }
 
-
+// ... the rest of the file remains the same ...
 
 function createDropZone(targetItem, targetGroup, targetIndex, type) {
     const drop = document.createElement('div');
@@ -250,7 +254,7 @@ function attachEditableEvents(cells, c) {
                 if (field === 'name') {
                     if (newValue === "") { alert("Combatant name cannot be empty."); cell.textContent = oldValue; return; }
                     if (newValue !== oldValue) {
-                        const allNames = combatants.flatMap(comb => comb.isGroup ? [comb, ...comb.members.map(m => m.name)] : [comb.name]);
+                        const allNames = combatants.flatMap(comb => comb.isGroup ? [comb.name, ...comb.members.map(m => m.name)] : [comb.name]);
                         const isDuplicate = allNames.some(other => other.id !== c.id && other.name === newValue);
                         if (isDuplicate) {
                             alert(`The name "${newValue}" is already in use.`); cell.textContent = oldValue; return;
