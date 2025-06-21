@@ -78,25 +78,9 @@ body.light .block-title { background-color: #e9d9b0; }
 
 /* ========== COMBATANT & ROW STYLES ========== */
 .combatant-wrapper { background-color: var(--bg-light); border-right: 1px solid #444; border-bottom: 1px solid #444; border-left: 1px solid #444; border-top: none; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: all 0.2s ease-out; }
-
-/* === CSS FIX 1: Group Header Styling === */
-/* Find and replace the .group-header-wrapper rule with this */
-.group-header-wrapper {
-  background-color: #2e2e2e;
-  /* ADD a full border to create separation, including the top */
-  border: 1px solid #555;
-  margin-top: 10px; /* Add space above the group header */
-}
-
-/* === CSS FIX 2: Group Header Text Color === */
-/* ADD this new rule to make text inside the group header readable */
-.group-header-wrapper .group-header .cell {
-    color: #e0e0e0;
-}
-.group-header-wrapper .group-header .cell[contenteditable="true"] {
-    background-color: #3a3a3a; /* Slightly lighter background for editable fields */
-}
-
+.group-header-wrapper { background-color: #2e2e2e; border: 1px solid #555; margin-top: 10px; }
+.group-header-wrapper .group-header .cell { color: #e0e0e0; }
+.group-header-wrapper .group-header .cell[contenteditable="true"] { background-color: #3a3a3a; }
 .group-member-wrapper { margin-left: 5%; width: 95%; background-color: #2e2e2e; }
 .creature-row { display: grid; grid-template-columns: minmax(40px, 0.5fr) minmax(60px, 0.6fr) minmax(150px, 2fr) minmax(60px, 0.6fr) minmax(120px, 1fr) minmax(70px, 0.7fr) minmax(150px, 1.5fr) minmax(90px, 0.8fr) minmax(150px, 1.2fr); align-items: center; padding: 6px 8px; }
 .combatant-wrapper > .creature-row { border-bottom: 1px solid #3a3a3a; }
@@ -120,6 +104,8 @@ body.light .combatant-wrapper { background-color: #f7eddc; border-right-color: v
 body.light .group-header-wrapper, body.light .group-member-wrapper { background-color: #e9d9b0; }
 body.light .group-header-wrapper { border-color: var(--border-parchment); }
 body.light .group-header-wrapper .group-header .cell { color: var(--text-parchment); }
+/* === CSS FIX: Added this rule to fix the input box color in light mode === */
+body.light .group-header-wrapper .cell[contenteditable="true"] { background-color: #fffaf0; }
 body.light .combatant-wrapper > .creature-row { border-bottom-color: #e9d9b0; }
 body.light .cell[contenteditable="true"] { background-color: #fffaf0; color: #4a3c1a; border-color: #d0bfa2; }
 body.light .status-tag { background-color: #dfc9a4; border: 1px solid #c3a982; color: #4a3c1a; }
